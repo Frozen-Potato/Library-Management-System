@@ -1,0 +1,144 @@
+cmake_minimum_required(VERSION 3.16)
+project(LibrarySystem CXX)
+
+# General Settings
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
+# Include Directories
+
+include_directories(
+    ${PROJECT_SOURCE_DIR}/includes
+    ${PROJECT_SOURCE_DIR}/includes/Interface
+    ${PROJECT_SOURCE_DIR}/includes/db
+    ${PROJECT_SOURCE_DIR}/includes/external/cpp-httplib
+    ${PROJECT_SOURCE_DIR}/schema
+    ${PROJECT_SOURCE_DIR}/ultis
+    /usr/local/include
+    /usr/include/postgresql
+)
+
+# Source Files
+
+file(GLOB_RECURSE SOURCES
+    ${PROJECT_SOURCE_DIR}/src/*.cpp
+    ${PROJECT_SOURCE_DIR}/ultis/*.cpp
+    ${PROJECT_SOURCE_DIR}/src/db/*.cpp
+    ${PROJECT_SOURCE_DIR}/main.cpp
+)
+
+# Exclude REST & gRPC servers from core app
+list(REMOVE_ITEM SOURCES
+    "${PROJECT_SOURCE_DIR}/src/server/RestServer.cpp"
+    "${PROJECT_SOURCE_DIR}/src/server/GrpcServer.cpp"
+)
+
+add_executable(library_app ${SOURCES})
+
+# Library Paths
+
+link_directories(
+    /usr/local/lib
+    /usr/lib/x86_64-linux-gnu
+)
+
+# PostgreSQL / libpqxx
+
+find_package(PostgreSQL REQUIRED)
+if (EXISTS "/usr/local/lib/libpqxx.so")
+    message(STATUS "Using custom libpqxx from /usr/local/lib")
+    set(PQXX_LIB /usr/local/lib/libpqxx.so)
+else()
+    message(WARNING "Falling back to system libpqxx")
+    set(PQXX_LIB pqxx)
+endif()
+
+# MongoDB C++ Driver
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(MONGOCXX REQUIRED libmongocxx)
+pkg_check_modules(BSONCXX REQUIRED libbsoncxx)
+include_directories(${MONGOCXX_INCLUDE_DIRS} ${BSONCXX_INCLUDE_DIRS})
+link_directories(${MONGOCXX_LIBRARY_DIRS} ${BSONCXX_LIBRARY_DIRS})
+
+# Link Core Executable
+
+target_link_libraries(library_app
+    PRIVATE
+        ${PQXX_LIB}
+        pq
+        ${MONGOCXX_LIBRARIES}
+        ${BSONCXX_LIBRARIES}
+)
+
+# Platform Specifics
+
+if (WIN32)
+    message(STATUS "Building for Windows (MSYS2 detected)")
+    add_definitions(-DWIN32_LEAN_AND_MEAN)
+    target_link_libraries(library_app PRIVATE ws2_32)
+elseif(UNIX)
+    message(STATUS "Building for Linux / WSL environment")
+endif()
+
+install(TARGETS library_app RUNTIME DESTINATION bin)
+
+# REST API Server (cpp-httplib)
+
+find_package(nlohmann_json REQUIRED)
+add_executable(library_server
+    src/server/RestServer.cpp
+    ${SOURCES}
+)
+target_include_directories(library_server PRIVATE
+    ${CMAKE_SOURCE_DIR}/includes
+    ${CMAKE_SOURCE_DIR}/includes/external/cpp-httplib
+)
+target_link_libraries(library_server
+    PRIVATE
+        ${PQXX_LIB}
+        pq
+        ${MONGOCXX_LIBRARIES}
+        ${BSONCXX_LIBRARIES}
+        nlohmann_json::nlohmann_json
+)
+
+
+# gRPC Server
+
+find_package(Protobuf REQUIRED)
+find_package(gRPC REQUIRED)
+
+set(PROTO_SRC
+    ${PROJECT_SOURCE_DIR}/schema/log_service.pb.cc
+    ${PROJECT_SOURCE_DIR}/schema/log_service.grpc.pb.cc
+)
+
+add_executable(library_grpc_server
+    src/server/GrpcServer.cpp
+    ${PROTO_SRC}
+)
+
+target_include_directories(library_grpc_server PRIVATE
+    ${CMAKE_SOURCE_DIR}/includes
+    ${CMAKE_SOURCE_DIR}/schema
+)
+
+target_link_libraries(library_grpc_server
+    PRIVATE
+        ${PQXX_LIB}
+        pq
+        ${MONGOCXX_LIBRARIES}
+        ${BSONCXX_LIBRARIES}
+        grpc++
+        grpc
+        protobuf
+)
+
+
+# Final Message
+
+message(STATUS "Configuration complete: library_app, library_server, library_grpc_server")

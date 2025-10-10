@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package library;
+
+service LogService {
+  rpc GetLogs (LogRequest) returns (LogResponse);
+}
+
+message LogRequest {
+  string level = 1; // optional filter (e.g., "ERROR", "INFO")
+}
+
+message LogEntry {
+  string timestamp = 1;
+  string level = 2;
+  string message = 3;
+  string user = 4;
+}
+
+message LogResponse {
+  repeated LogEntry logs = 1;
+}
