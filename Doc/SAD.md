@@ -20,6 +20,7 @@ It describes how REST, gRPC, and data storage components interact within a modul
 - Support large-scale datasets (≥ 1 million media items).
 - Enable REST + gRPC services in one runtime process.
 - Ensure security and auditability via JWT and MongoDB logs.
+- Fault-tolerant asynchronous processing for logs and background tasks.
 
 ### Scope
 
@@ -28,9 +29,10 @@ The system manages library operations, including:
 - Borrowing and returning media copies
 - User registration and authentication
 - Audit logging of system actions
+- Background queue processing
 
 It integrates PostgreSQL (for relational persistence) and MongoDB (for activity logs), both running in Docker.
-REST APIs are implemented via Crow, and gRPC is used for internal log queries.
+REST APIs are implemented via Crow, and gRPC is used for internal log queries, and a persistent queue is implemented internally for background task execution.
 
 ## System Overview
 
@@ -42,6 +44,7 @@ The runtime hosts:
 - A Crow REST server for public and protected HTTP endpoints
 - A gRPC service for log queries
 - Shared business logic and database adapters across both APIs
+- A background thread that manages the Persistent Queue and Worker
 
 | Layer                    | Responsibility                                              |
 | ------------------------ | ----------------------------------------------------------- |
@@ -50,17 +53,19 @@ The runtime hosts:
 | **Application Layer**    | Core business services (Library, Auth, User).               |
 | **Domain Layer**         | Entities: Media, Borrow, User, Role, Permission.            |
 | **Data Access Layer**    | `PostgresAdapter`, `MongoAdapter` for persistence.          |
-| **Infrastructure Layer** | Configuration, DB connections, JWT helper, password hasher. |
+| **Infrastructure Layer** | Config, DB connections, JWT helper, password hasher, queue. |
 | **Data Stores**          | PostgreSQL (main DB), MongoDB (audit logs).                 |
+
 
 ## Gereral Data flow
 
 ```
-Clients  →  REST API / gRPC  →  Application Services  →  Adapters  →  Databases
+Clients  →  REST API / gRPC  →  Application Services  →  Adapters  →  Databases / Queue
 ```
 - All client requests to protected pass through JWT middleware.
 - REST and gRPC share the same service layer instance.
 - Data persistence flows to PostgreSQL (core data) and MongoDB (audit events).
+- Asynchronous tasks (e.g., logs, deferred operations) go to the Persistent Queue, processed by a background worker thread.
 
 ## Architecture Layers
 
@@ -118,21 +123,30 @@ Both adapters receive configuration from `EnvLoader`.
 ### Infrastructure Layer
 
 Responsibilities:
-- Manage cross-cutting and external dependencies
+- Supports configuration, connections, authentication, and background processing.
 
 Components:
 - `JwtHelper` → token creation & validation
 - `PasswordHasher` → secure credential storage
 - `EnvLoader` / `ConfigManager` → load .env and runtime variables
 - Database pools → `pqxx::connection_pool`, `mongocxx::client`
+- `PersistentQueue` → durable in-DB task queue system
+- `QueueWorker` → background worker that processes queued tasks
+
+The `PersistentQueue` subsystem acts as an internal message broker.
+It stores pending tasks (e.g., “log borrow event”) in PostgreSQL.
+The `QueueWorker` thread monitors this table, executes each task (such as calling `MongoLogger`), and marks it complete.
+If the system restarts, pending tasks remain intact and resume automatically.
 
 ## Runtime View
+
 ### Startup Sequence
 
 ```
 main.cpp
  ├─ Load configuration from .env
  ├─ Initialize Postgres & Mongo connections
+ ├─ Initialize PersistentQueue and QueueWorker
  ├─ Initialize services (LibraryService, AuthService, UserService)
  ├─ Start Crow server (REST)
  │   ├─ Register public routes
@@ -140,30 +154,34 @@ main.cpp
  │   └─ Run on thread pool
  └─ Start gRPC server (LogService)
 ```
-### Simplified borrowing flow
 
-```
-1. Client → POST /borrow (JWT)
-2. JwtMiddleware validates token, extracts user_id
-3. BorrowController → LibraryService.borrowCopy(user_id, copy_id)
-4. LibraryService:
-     - Validates copy availability
-     - Inserts record via PostgresAdapter
-     - Logs action via MongoAdapter
-5. Response → 200 OK
-```
+### Borrow Flow (Synchronous)
+
+1. Client sends POST /borrow request.
+2. REST Controller invokes LibraryService.borrowCopy().
+3. PostgreSQL updates active_borrow and sets copy unavailable.
+4. PersistentQueue enqueues background logging tasks.
+5. Response returned immediately after database commit.
+
+### Logging Flow (Asynchronous)
+
+1. QueueWorker continuously polls for pending tasks.
+2. When LOG_EVENT is found, it calls MongoLogger.
+3. MongoLogger writes to MongoDB.
+4. Task status set to DONE.
 
 ## Deployment View
 
 Runtime Processes:
 Single binary: `library_server`
-Thread 1–N: Crow REST API
-Thread M: gRPC Log Service
+- Thread pool: Crow REST API
+- Dedicated thread: gRPC Log Service
+- Background thread: QueueWorker (PersistentQueue)
 
 Docker containers:
-`postgres`
-`mongo`
-`library_server`
+- `postgres`
+- `mongo`
+- `library_server`
 
 Network:
 ```
@@ -184,6 +202,8 @@ The PostgreSQL schema follows a polymorphic relational model with subtype tables
 | `ACTIVE_BORROW`, `BORROW_HISTORY`          | Transaction tracking                        |
 | `USERS`, `MEMBERS`, `ADMINS`, `LIBRARIANS` | User hierarchy                              |
 | `ROLES`, `PERMISSIONS`                     | RBAC metadata                               |
+| `TASK_QUEUE`                               | Internal persistent background task store   |
+
 
 MongoDB stores:
 - Audit events (`BORROW`, `RETURN`, `LOGIN`)
@@ -197,4 +217,4 @@ MongoDB stores:
 | **Authorization**        | Role-based checks (`Admin`, `Librarian`, etc.) |
 | **Password Storage**     | Hashed via bcrypt/argon2                       |
 | **Data Confidentiality** | TLS termination at reverse proxy (e.g., Nginx) |
-| **Audit**                | All critical actions logged in MongoDB         |
+| **Audit**                | MongoDB + PersistentQueue for log reliability  |

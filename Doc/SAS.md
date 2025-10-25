@@ -15,6 +15,7 @@ The system integrates:
 - PostgreSQL (for relational persistence)
 - MongoDB (for audit and log events)
 - JWT-based authentication and authorization
+- A lightweight Persistent Queue subsystem for asynchronous task handling
 
 Both databases run in Docker containers. The REST and gRPC services share the same executable (library_server), with independent threads for each server.
 
@@ -23,13 +24,14 @@ Both databases run in Docker containers. The REST and gRPC services share the sa
 ### Layered Structure
 
 The architecture is divided into five layers:
-| Layer                    | Responsibility                                    | Example Components                            |
-| ------------------------ | ------------------------------------------------- | --------------------------------------------- |
-| **API Layer**            | HTTP and gRPC endpoints, route handling, JWT auth | Crow Controllers, JwtMiddleware, gRPC Service |
-| **Application Layer**    | Core orchestration, business logic, use cases     | LibraryService, AuthService, UserService      |
-| **Domain Layer**         | Core business entities, aggregates, and logic     | Media, Member, BorrowRecord, Role             |
-| **Data Access Layer**    | Database access and persistence abstraction       | PostgresAdapter, MongoAdapter                 |
-| **Infrastructure Layer** | External systems integration, configuration       | JwtHelper, EnvLoader, PasswordHasher          |
+| Layer                    | Responsibility                                    | Example Components                                    |
+| ------------------------ | ------------------------------------------------- | ----------------------------------------------------- |
+| **API Layer**            | HTTP and gRPC endpoints, route handling, JWT auth | Crow Controllers, JwtMiddleware, gRPC Service         |
+| **Application Layer**    | Core orchestration, business logic, use cases     | LibraryService, AuthService, UserService              |
+| **Domain Layer**         | Core business entities, aggregates, and logic     | Media, Member, BorrowRecord, Role                     |
+| **Data Access Layer**    | Database access and persistence abstraction       | PostgresAdapter, MongoAdapter                         |
+| **Infrastructure Layer** | External systems integration, configuration       | JwtHelper, EnvLoader, PasswordHasher, PersistentQueue |
+
 
 ### Runtime Architecture
 
@@ -81,6 +83,8 @@ graph TD
         PgPool[PostgreSQL Connection Pool]
         MgConn[MongoDB Connection]
         Env[EnvLoader / ConfigManager]
+        Queue[PersistentQueue]
+        Worker[QueueWorker]
     end
 
     DB1[(PostgreSQL)]
@@ -109,7 +113,9 @@ graph TD
     LogSvc --> MgAdapter
 
     LibSvc --> PgAdapter
-    LibSvc --> MgAdapter
+    LibSvc --> Queue
+    Queue --> Worker
+    Worker --> MgAdapter
     AuthSvc --> PgAdapter
     AuthSvc --> JwtHelp
     AuthSvc --> Hasher
@@ -121,12 +127,13 @@ graph TD
     Env --> PgPool
     Env --> MgConn
     Env --> JwtHelp
+    Env --> Queue
 
     class LoginCtrl,MediaCtrl,BorrowCtrl,ReturnCtrl,UserCtrl,JWT,PublicGroup,ProtectedGroup,LogSvc apiLayer
     class LibSvc,AuthSvc,UserSvc serviceLayer
     class MediaModels,UserModels,BorrowModels,RoleModels domainLayer
     class PgAdapter,MgAdapter dataLayer
-    class JwtHelp,Hasher,PgPool,MgConn,Env infraLayer
+    class JwtHelp,Hasher,PgPool,MgConn,Env,Queue,Worker infraLayer
     class DB1,DB2 dbLayer
 ```
 
@@ -141,8 +148,7 @@ graph TD
     `/media` (GET), `/login` (POST), `/register` (optional)
     - **Protected (JWT Required)**
     `/borrow`, `/return`, `/users`, `/logs`
-- Middleware:
-`JwtMiddleware` validates JWT and attaches user context.
+- Middleware: `JwtMiddleware` validates JWT and attaches user context.
 
 **gRPC API**
 - Service: `logservice.LogService`
@@ -201,18 +207,25 @@ Uses `pqxx::connection` and `mongocxx::client` objects initialized from `.env`.
 
 ### Infrastructure Components
 
-| Component          | Description                                    |
-| ------------------ | ---------------------------------------------- |
-| **JwtHelper**      | Creates & validates JWTs using HMAC SHA256     |
-| **PasswordHasher** | Uses bcrypt/argon2 for secure password hashing |
-| **EnvLoader**      | Loads `.env` values for DB URIs and secrets    |
-| **ConfigManager**  | Central access point for configuration values  |
+| Component           | Description                                              |
+| ------------------- | -------------------------------------------------------- |
+| **JwtHelper**       | Creates & validates JWTs using HMAC SHA256               |
+| **PasswordHasher**  | Uses bcrypt/argon2 for secure password hashing           |
+| **EnvLoader**       | Loads `.env` values for DB URIs and secrets              |
+| **ConfigManager**   | Central access point for configuration values            |
+| **PersistentQueue** | Internal durable queue storing async tasks in PostgreSQL |
+| **QueueWorker**     | Background thread polling queue and executing operations |
+
+The `PersistentQueue` subsystem ensures fault-tolerant asynchronous execution.
+It stores tasks like log entries or delayed syncs in a PostgreSQL table (`task_queue`) and executes them via `QueueWorker`.
+Tasks are retried automatically if a failure occurs, ensuring resilience and consistency without blocking user-facing operations.
 
 ### Data Model Overview
 
 - Fully normalized schema with polymorphic media handling.
 - New `MEDIA_TYPE` table decouples subtype definitions.
 - `ACTIVE_BORROW` and `BORROW_HISTORY` separate for scalability.
+- `TASK_QUEUE` table supports background task management.
 
 ```mermaid
 erDiagram
@@ -343,6 +356,15 @@ erDiagram
         int role_id FK
     }
 
+    TASK_QUEUE {
+        bigint task_id PK
+        text task_type
+        jsonb payload
+        text status
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
     %% === Relationships ===
     MEDIA_TYPE ||--o{ MEDIA : "categorizes"
     
@@ -367,6 +389,8 @@ erDiagram
     PERMISSIONS ||--o{ ROLE_PERMISSIONS : "defines"
     USERS ||--o{ USER_ROLES : "assigned"
     ROLES ||--o{ USER_ROLES : "grants"
+
+    TASK_QUEUE ||--o{ MongoDB : "used for log storage"
 ```
 
 ### Route Security Model
@@ -390,6 +414,7 @@ erDiagram
     - `postgres`
     - `mongo`
 - Shared Docker network for internal access.
+- Queue worker runs inside the same `library_server` process, ensuring all operations share one transactional context.
 - Environment variables injected at runtime:
 
 ```ini

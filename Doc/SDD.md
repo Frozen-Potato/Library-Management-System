@@ -233,6 +233,52 @@ classDiagram
         +fetchLogs(filter)
     }
 
+    class Task {
+        +id : int
+        +type : string
+        +payload : json
+        +status : string
+        +createdAt : time_point
+        +Task(id:int, type:string, payload:json, status:string)
+    }
+
+    class PersistentQueue {
+        -connection : PostgresConnection
+        -mutex : std::mutex
+        +enqueue(task: Task) void
+        +dequeue() optional~Task~
+        +markProcessing(id:int) void
+        +markDone(id:int) void
+        +markFailed(id:int, reason:string) void
+        +countPending() int
+    }
+
+    class QueueWorker {
+        -queue : PersistentQueue*
+        -handlers : map~string, ITaskHandler*~
+        -running : bool
+        +start() void
+        +stop() void
+        -loop() void
+        -process(task: Task) void
+        +registerHandler(type:string, handler:ITaskHandler*) void
+    }
+
+    class ITaskHandler {
+        <<interface>>
+        +handle(task: Task) void
+    }
+
+    class LogEventHandler {
+        -mongoLogger : MongoLogger
+        +handle(task: Task) void
+    }
+
+    class SyncMediaHandler {
+        -db : PostgresAdapter
+        +handle(task: Task) void
+    }
+
     %% === Relationships ===
     Media <|-- Book
     Media <|-- Magazine
@@ -251,17 +297,38 @@ classDiagram
     AuthService --> JwtHelper
     AuthService --> PasswordHasher
 
+    PersistentQueue "1" o-- "*" Task : manages
+    QueueWorker --> PersistentQueue : uses
+    QueueWorker --> ITaskHandler : delegates to
+    ITaskHandler <|.. LogEventHandler
+    ITaskHandler <|.. SyncMediaHandler
 ```
 
 ## Data Flow Summary
 
-| Operation           | Flow                                                                      |
-| ------------------- | ------------------------------------------------------------------------- |
-| **Borrow Copy**     | REST → Controller → `LibraryService` → `PostgresAdapter` + `MongoAdapter` |
-| **Return Copy**     | REST → Controller → `LibraryService` → `PostgresAdapter` + `MongoAdapter` |
-| **Login**           | REST → `AuthService` → `PostgresAdapter` → `PasswordHasher` → `JwtHelper` |
-| **Search Media**    | REST → `LibraryService` → `PostgresAdapter` (SQL LIKE query)              |
-| **gRPC Log Stream** | gRPC → `MongoAdapter::fetchLogs()`                                        |
+### Flows
+
+| **Operation**          | **Execution Type**   | **Main Flow**                                                                                                         | **Async Tasks (via PersistentQueue)**                              |
+| ---------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| **Borrow Copy**        | Synchronous          | REST → Controller → `LibraryService` → `PostgresAdapter` → PostgreSQL (insert `active_borrow`, mark copy unavailable) | Enqueue `LOG_EVENT` (Mongo), optionally enqueue `SYNC_MEDIA_STATE` |
+| **Return Copy**        | Synchronous          | REST → Controller → `LibraryService` → `PostgresAdapter` → PostgreSQL (move to history, mark copy available)          | Enqueue `LOG_EVENT` (Mongo), optionally enqueue `SYNC_MEDIA_STATE` |
+| **Login**              | Synchronous          | REST → `AuthService` → `PostgresAdapter` → `PasswordHasher` → `JwtHelper`                                             | None                                                               |
+| **Search Media**       | Synchronous          | REST → `LibraryService` → `PostgresAdapter` (SQL `LIKE` query)                                                        | None                                                               |
+| **gRPC Log Stream**    | Synchronous (stream) | gRPC → `MongoAdapter::fetchLogs()`                                                                                    | None — reads directly from Mongo                                   |
+| **Background Logging** | Asynchronous         | `LibraryService` → `PersistentQueue` → `QueueWorker` → `MongoLogger`                                                  | Queue writes to Mongo, decoupled from REST latency                 |
+| **Background Sync**    | Asynchronous         | `LibraryService` → `PersistentQueue` → `QueueWorker` → `PostgresAdapter::syncMediaAvailability()`                     | Keeps media availability consistent                                |
+
+
+### Behavior Summary
+
+| **Aspect**           | **Synchronous Path**                                              | **Asynchronous Path**                                            |
+| -------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------- |
+| **Goal**             | Ensure core business transaction (borrow, return, login) succeeds | Offload non-critical side effects (logging, sync, notifications) |
+| **Components**       | REST/gRPC controllers, services, adapters                         | PersistentQueue, QueueWorker, task handlers                      |
+| **Latency**          | Directly affects API response                                     | Runs in background thread/process                                |
+| **Failure Handling** | Rolls back transaction                                            | Retries via queue, no user-facing error                          |
+| **Persistence**      | PostgreSQL                                                        | PostgreSQL (task_queue) + MongoDB (logs)                         |
+
 
 ## Core Algorithms
 

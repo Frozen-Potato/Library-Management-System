@@ -150,6 +150,15 @@ CREATE TABLE IF NOT EXISTS user_roles (
 CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON user_roles(user_id);
 CREATE INDEX IF NOT EXISTS idx_role_permissions_role_id ON role_permissions(role_id);
 
+CREATE TABLE IF NOT EXISTS task_queue (
+    id BIGSERIAL PRIMARY KEY,
+    task_type TEXT NOT NULL,
+    payload JSONB NOT NULL,
+    status TEXT DEFAULT 'PENDING' CHECK (status IN ('PENDING','PROCESSING','DONE','FAILED')),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_status ON task_queue(status);
 
 -- Utility Procedures (excluding move to history)
 
@@ -219,3 +228,45 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION fn_sync_media_availability()
+RETURNS TRIGGER AS $$
+DECLARE
+    target_media_id BIGINT;
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        target_media_id := NEW.media_id;
+
+    ELSIF (TG_OP = 'UPDATE') THEN
+        -- Only sync if availability changed or media_id changed
+        IF NEW.is_available IS DISTINCT FROM OLD.is_available
+           OR NEW.media_id IS DISTINCT FROM OLD.media_id THEN
+            target_media_id := NEW.media_id;
+        ELSE
+            RETURN NEW;
+        END IF;
+
+    ELSIF (TG_OP = 'DELETE') THEN
+        target_media_id := OLD.media_id;
+    END IF;
+
+    -- Call the sync procedure if we have a target media ID
+    IF target_media_id IS NOT NULL THEN
+        PERFORM sync_media_availability(target_media_id);
+    END IF;
+
+    -- Return appropriate record
+    IF (TG_OP = 'DELETE') THEN
+        RETURN OLD;
+    ELSE
+        RETURN NEW;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_sync_media_availability ON media_copy;
+
+CREATE TRIGGER trg_sync_media_availability
+AFTER INSERT OR UPDATE OR DELETE
+ON media_copy
+FOR EACH ROW
+EXECUTE FUNCTION fn_sync_media_availability();

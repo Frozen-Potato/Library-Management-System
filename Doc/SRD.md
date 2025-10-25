@@ -27,6 +27,7 @@ The system provides both REST (Crow) and gRPC interfaces for internal and extern
 - **gRPC Server:** Concurrent thread in same binary
 - **Databases:** PostgreSQL (relational data), MongoDB (audit logs)
 - **Deployment:** Docker-compose with PostgreSQL and MongoDB containers
+- **PersistentQueue**
 
 ## Functional Requirements
 
@@ -42,15 +43,19 @@ The system provides both REST (Crow) and gRPC interfaces for internal and extern
 | LMS-8  | Logging            | Record all actions (borrow, return, login, error) in MongoDB audit store.          |
 | LMS-9  | Search & Filtering | Provide search for title, author, or media type via REST queries.                  |
 | LMS-10 | System Monitoring  | Expose basic health and status endpoints.                                          |
+| LMS-11 | Persistent Queue   | System shall queue background tasks asynchronously.                                |
+| LMS-12 | Persistent Queue   | Queue shall persist unprocessed tasks across restarts.                             |
+| LMS-13 | Media Management   | System shall synchronize `media.is_available` based on copies.                     |
+
 
 ## Non-Functional Requirements
 
 | Type            | Requirement                                                 |
 | --------------- | ----------------------------------------------------------- |
 | Performance     | Handle ≥ 1 million media records in PostgreSQL.             |
-| Availability    | ≥ 99.999 % uptime target.                                     |
-| Security        | JWT-based authentication; hashed passwords (Argon2/Bcrypt). |
-| Scalability     | Support horizontal scaling via Docker replicas.             |
+| Availability    | ≥ 99.999 % uptime target.                                   |
+| Security        | JWT-based authentication; hashed passwords (Bcrypt).        |
+| Persistence     | Tasks are stored durably in PostgreSQL.                     |
 | Maintainability | Layered architecture with separated concerns.               |
 | Portability     | Linux-based Docker containers.                              |
 | Auditability    | All user actions logged in MongoDB with timestamps.         |
@@ -79,6 +84,7 @@ The system provides both REST (Crow) and gRPC interfaces for internal and extern
 - PostgreSQL ≥ 15 and libpqxx ≥ 7.8.
 - MongoDB ≥ 7.0 and mongocxx ≥ 3.8.
 - Docker environment with `.env` configuration file.
+- QueueWorker starts automatically with `library_server`.
 
 ### Constraints
 
