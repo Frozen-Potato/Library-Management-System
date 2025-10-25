@@ -3,32 +3,31 @@
 title Use Case: Borrow Item
 
 actor "Member" as Member
-actor "PostgreSQL Database" as DB
+
 rectangle LibrarySystem {
     usecase "Borrow Item" as UC_Borrow
     usecase "Check Availability" as UC_CheckAvail
     usecase "Validate Borrow Limit" as UC_ValidateLimit
-    usecase "Record Borrow Transaction" as UC_Record
-    usecase "Update Media Availability" as UC_Update
+    usecase "Record Transaction" as UC_Record
+    usecase "Update Item Status" as UC_Update
 }
 
 Member --> UC_Borrow
-UC_Borrow --> UC_CheckAvail : includes
-UC_Borrow --> UC_ValidateLimit : includes
-UC_Borrow --> UC_Record : includes
-UC_Record --> DB : <<writes>> record to borrow table
-UC_Update --> DB : <<updates>> media availability
-UC_Borrow --> UC_Update : extends
+
+UC_CheckAvail .> UC_Borrow : <<include>>
+UC_ValidateLimit .> UC_Borrow : <<include>>
+UC_Record .> UC_Borrow : <<include>>
+UC_Update .> UC_Borrow : <<include>>
 
 note right of UC_Borrow
   Preconditions:
   - Member exists in system
   - Item exists and is available
   - Member has not reached borrow limit
-
+  
   Postconditions:
-  - Borrow record stored in DB
-  - Item availability updated to FALSE
+  - Borrow record created
+  - Item marked as unavailable
 end note
 @enduml
 ```
@@ -38,7 +37,7 @@ end note
 title Use Case: Return Item
 
 actor "Member" as Member
-actor "PostgreSQL Database" as DB
+
 rectangle LibrarySystem {
     usecase "Return Item" as UC_Return
     usecase "Validate Borrow Record" as UC_Validate
@@ -47,20 +46,21 @@ rectangle LibrarySystem {
 }
 
 Member --> UC_Return
-UC_Return --> UC_Validate : includes
-UC_Return --> UC_UpdateDate : includes
-UC_Return --> UC_Available : includes
-UC_UpdateDate --> DB : <<writes>> return_date
-UC_Available --> DB : <<updates>> media availability
+
+UC_Validate .> UC_Return : <<include>>
+UC_UpdateDate .> UC_Return : <<include>>
+UC_Available .> UC_Return : <<include>>
 
 note right of UC_Return
   Preconditions:
-  - Borrow record exists for this user & item
-  - Item currently unavailable (borrowed)
-
+  - Active borrow record exists
+  - Item is currently marked as borrowed
+  
   Postconditions:
-  - Return date recorded
-  - Media set to available (TRUE)
+  - Return date recorded in borrow record
+  - Item status updated to available
 end note
+
 @enduml
+
 ```

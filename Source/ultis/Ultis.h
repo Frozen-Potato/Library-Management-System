@@ -2,6 +2,7 @@
 #define ULT_H
 
 #include <unordered_map>
+#include "MongoLogger.h"
 
 namespace Ultis {
     template <typename T>
@@ -47,7 +48,49 @@ namespace Ultis {
         });
         std::cout << "\n";
     }
-}
+
+    struct Result {
+        bool success;
+        std::string message;
+        int httpCode;
+
+        explicit operator bool() const { return success; };
+    };
+
+    template<typename Func, typename... Args>
+    Result tryExecute(  MongoLogger& logger, 
+                        const std::string& actionName,                     
+                        const int& userId,
+                        Func&& func,     
+                        Args&&... args) {
+        try {
+            std::invoke(std::forward<Func>(func), std::forward<Args>(args)...);
+
+            std::string msg = actionName + " SUCCESS userId=" + std::to_string(userId);
+            logger.logEvent("INFO", msg);
+            return {true, msg, 200};
+        }
+        catch (const BookUnavailable& e) {
+            std::string msg = actionName + " FAILED userId=" + std::to_string(userId);
+            logger.logEvent("WARN", msg);
+            return {false, e.what(), 409};
+        }
+        catch (const GeneralFailure& e) {
+            std::string msg = actionName + " FAILED userId=" + std::to_string(userId);
+            logger.logEvent("ERROR", msg);
+            return {false, e.what(), 400};
+        }
+        catch (const std::exception& e) {
+            std::string msg = actionName + " CRASHED userId=" + std::to_string(userId);
+            logger.logEvent("CRITICAL", msg);
+            return {false, e.what(), 500};
+        }
+        catch (...) {
+            std::string msg = actionName + " CRASHED with unknown error userId=" + std::to_string(userId);
+            logger.logEvent("CRITICAL", msg);
+            return {false, "Unknown error", 500};
+        };
+    };
+};
 
 #endif
-

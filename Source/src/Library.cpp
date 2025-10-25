@@ -37,7 +37,8 @@ void Library::addMagazine(int id, const std::string& title, int issueNumber) {
 }
 
 std::shared_ptr<Media> Library::findItemById(int id) {
-    return Ultis::findById(items, id);
+    return db->getMediaById(id);
+    // return Ultis::findById(items, id);
 }
 
 std::shared_ptr<Media> Library::findItemByName(const std::string& name) {

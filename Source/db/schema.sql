@@ -32,8 +32,22 @@ CREATE TABLE IF NOT EXISTS media (
 
 CREATE TABLE IF NOT EXISTS borrow (
     borrow_id SERIAL PRIMARY KEY,
-    user_id INT REFERENCES users(id),
-    media_id INT REFERENCES media(id),
-    borrow_date DATE DEFAULT CURRENT_DATE,
-    return_date DATE
+    user_id INT NOT NULL REFERENCES users(id),
+    copy_id INT NOT NULL REFERENCES media_copy(copy_id),
+    borrow_date TIMESTAMP NOT NULL DEFAULT CURRENT_DATE,
+    return_date TIMESTAMP,
+    CONSTRAINT uq_active_borrow UNIQUE (copy_id, return_date)
 );
+
+
+CREATE TABLE IF NOT EXISTS media_copy (
+    copy_id SERIAL PRIMARY KEY,
+    media_id INT NOT NULL REFERENCES media(id) ON DELETE CASCADE,
+    condition VARCHAR(20) DEFAULT 'GOOD',
+    is_available BOOLEAN DEFAULT TRUE,
+    UNIQUE (media_id, copy_id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_borrow_open_copy
+ON borrow(copy_id)
+WHERE return_date IS NULL;

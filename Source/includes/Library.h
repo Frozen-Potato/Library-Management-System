@@ -7,6 +7,7 @@
 #include "Member.h"
 #include "BorrowRecord.h"
 #include "PostgresAdapter.h"
+#include "MediaCopy.h"
 
 #include <algorithm>
 #include <unordered_map>
@@ -18,6 +19,7 @@ class Library {
 private:
     std::unordered_map<int, std::shared_ptr<Media>> items;
     std::unordered_map<int, std::shared_ptr<User>> users;
+    std::unordered_map<int, std::shared_ptr<MediaCopy>> copies;
     std::vector<BorrowRecord> borrowHistory;
     mutable std::mutex mtx;
 

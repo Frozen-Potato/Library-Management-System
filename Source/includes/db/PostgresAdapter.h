@@ -16,6 +16,7 @@
 #include "EnvLoader.h"
 #include "Student.h"
 #include "Teacher.h"
+#include "MediaCopy.h"
 
 class PostgresAdapter {
 private:
@@ -31,10 +32,17 @@ public:
     std::vector<Member> getAllMembers();
 
     // --- Media operations ---
+    std::shared_ptr<Media> getMediaById(const int& id);
     void addBook(const Book& book);
     void addMagazine(const Magazine& mag);
     std::vector<std::shared_ptr<Media>> getAllMedia();
     void updateMediaAvailability(int mediaId, bool available);
+
+    // --- Media Copy operations ---
+    MediaCopy getCopy(int copyId);
+    MediaCopy createMediaCopy(int mediaId, const std::string& condition);
+    std::vector<MediaCopy> listCopiesByMedia(int mediaId);
+    MediaCopy updateCopy(int copyId, std::optional<std::string> newCondition, std::optional<bool> newAvailability);
 
     // --- Borrow operations ---
     void addBorrowRecord(int userId, int mediaId);

@@ -52,9 +52,12 @@ private:
 };
 
 void openGrpcServer() {
+    EnvLoader env;
+    MongoLogger logger(env.getMongoUrl());
+
     grpc::reflection::InitProtoReflectionServerBuilderPlugin(); 
     std::string address("0.0.0.0:50051");
-    std::string mongo_uri = "mongodb://root:password@localhost:27018";
+    std::string mongo_uri = env.getMongoUrl();
     LogServiceImpl service(mongo_uri);
 
     ServerBuilder builder;
