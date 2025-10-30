@@ -8,9 +8,9 @@ void PersistentQueue::enqueue(const std::string& type, const nlohmann::json& pay
     std::scoped_lock lock(mtx_);
     try {
         pqxx::work txn(*conn_);
-        txn.exec_params(
+        txn.exec(
             "INSERT INTO task_queue (task_type, payload, status) VALUES ($1, $2, 'PENDING');",
-            type, payload.dump()
+            pqxx::params{type, payload.dump()}
         );
         txn.commit();
     } catch (const std::exception& e) {
@@ -41,12 +41,12 @@ std::optional<Task> PersistentQueue::dequeueOne() {
 std::vector<Task> PersistentQueue::dequeueBatch(int limit) {
     std::scoped_lock lock(mtx_);
     pqxx::work txn(*conn_);
-    auto r = txn.exec_params(
+    auto r = txn.exec(
         "UPDATE task_queue "
         "SET status = 'PROCESSING' "
         "WHERE id IN (SELECT id FROM task_queue WHERE status = 'PENDING' ORDER BY created_at LIMIT $1 FOR UPDATE SKIP LOCKED) "
         "RETURNING id, task_type, payload, status;",
-        limit
+        pqxx::params{limit}
     );
     txn.commit();
 
@@ -64,6 +64,6 @@ std::vector<Task> PersistentQueue::dequeueBatch(int limit) {
 
 void PersistentQueue::markProcessed(long taskId) {
     pqxx::work txn(*conn_);
-    txn.exec_params("UPDATE task_queue SET status = 'DONE' WHERE id = $1;", taskId);
+    txn.exec("UPDATE task_queue SET status = 'DONE' WHERE id = $1;", pqxx::params{taskId});
     txn.commit();
 }

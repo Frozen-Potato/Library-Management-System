@@ -1,0 +1,99 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: library_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: librarydb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../db/schema.sql:/docker-entrypoint-initdb.d/1_schema.sql
+      - ../db/seed.sql:/docker-entrypoint-initdb.d/2_seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d librarydb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - library_net
+
+  mongo:
+    image: mongo:7
+    container_name: library_mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: library_logs
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongodata:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--username", "root", "--password", "password", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - library_net
+
+  mongo-express:
+    image: mongo-express
+    container_name: library_mongo_ui
+    restart: always
+    ports:
+      - "8082:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongo
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: password
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - library_net
+
+  library_backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: library_server
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    env_file:
+      - ../.env
+    environment:
+      POSTGRES_URI: postgresql://postgres:password@postgres:5432/librarydb
+      MONGO_URI: mongodb://root:password@mongo:27017
+      MONGO_DB: library_logs
+      MONGO_COLLECTION: audit_events
+      REST_PORT: 8080
+      GRPC_PORT: 50051
+      JWT_SECRET: super_secret_jwt_key
+      JWT_EXPIRATION_MINUTES: 6000
+      QUEUE_INTERVAL: 2
+    ports:
+      - "8080:8080"
+      - "50051:50051"
+    restart: unless-stopped
+    networks:
+      - library_net
+
+volumes:
+  pgdata:
+  mongodata:
+
+networks:
+  library_net:
+    driver: bridge

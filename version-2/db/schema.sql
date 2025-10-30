@@ -36,13 +36,11 @@ CREATE TABLE IF NOT EXISTS magazine (
 
 CREATE TABLE IF NOT EXISTS dvd (
     media_id BIGINT PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE,
-    duration_minutes INT,
     director TEXT
 );
 
 CREATE TABLE IF NOT EXISTS audiobook (
     media_id BIGINT PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE,
-    length_minutes INT,
     narrator TEXT
 );
 
@@ -56,31 +54,6 @@ CREATE TABLE IF NOT EXISTS media_copy (
 
 CREATE INDEX IF NOT EXISTS idx_copy_media_id ON media_copy(media_id);
 CREATE INDEX IF NOT EXISTS idx_copy_availability ON media_copy(is_available);
-
--- Borrowing ===
-CREATE TABLE IF NOT EXISTS active_borrow (
-    borrow_id BIGSERIAL PRIMARY KEY,
-    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    copy_id BIGINT NOT NULL REFERENCES media_copy(copy_id) ON DELETE CASCADE,
-    borrow_date TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    due_date TIMESTAMPTZ
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS uq_active_copy_borrow ON active_borrow(copy_id) WHERE due_date IS NULL;
-CREATE INDEX IF NOT EXISTS idx_borrow_user_id ON active_borrow(user_id);
-CREATE INDEX IF NOT EXISTS idx_borrow_date ON active_borrow(borrow_date);
-
-CREATE TABLE IF NOT EXISTS borrow_history (
-    borrow_id BIGSERIAL PRIMARY KEY,
-    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    copy_id BIGINT NOT NULL REFERENCES media_copy(copy_id) ON DELETE CASCADE,
-    borrow_date TIMESTAMPTZ,
-    return_date TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_history_user_id ON borrow_history(user_id);
-CREATE INDEX IF NOT EXISTS idx_history_copy_id ON borrow_history(copy_id);
-CREATE INDEX IF NOT EXISTS idx_history_return_date ON borrow_history(return_date);
 
 -- Users ===
 CREATE TABLE IF NOT EXISTS users (
@@ -111,15 +84,11 @@ CREATE TABLE IF NOT EXISTS teachers (
 );
 
 CREATE TABLE IF NOT EXISTS librarians (
-    id INT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    branch TEXT,
-    shift_schedule TEXT
+    id INT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS admins (
-    id INT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    access_level TEXT,
-    department TEXT
+    id INT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Roles & Permissions ===
@@ -159,6 +128,31 @@ CREATE TABLE IF NOT EXISTS task_queue (
 );
 
 CREATE INDEX IF NOT EXISTS idx_task_status ON task_queue(status);
+
+-- Borrowing ===
+CREATE TABLE IF NOT EXISTS active_borrow (
+    borrow_id BIGSERIAL PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    copy_id BIGINT NOT NULL REFERENCES media_copy(copy_id) ON DELETE CASCADE,
+    borrow_date TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    due_date TIMESTAMPTZ
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_active_copy_borrow ON active_borrow(copy_id) WHERE due_date IS NULL;
+CREATE INDEX IF NOT EXISTS idx_borrow_user_id ON active_borrow(user_id);
+CREATE INDEX IF NOT EXISTS idx_borrow_date ON active_borrow(borrow_date);
+
+CREATE TABLE IF NOT EXISTS borrow_history (
+    borrow_id BIGSERIAL PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    copy_id BIGINT NOT NULL REFERENCES media_copy(copy_id) ON DELETE CASCADE,
+    borrow_date TIMESTAMPTZ,
+    return_date TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_history_user_id ON borrow_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_history_copy_id ON borrow_history(copy_id);
+CREATE INDEX IF NOT EXISTS idx_history_return_date ON borrow_history(return_date);
 
 -- Utility Procedures (excluding move to history)
 
@@ -251,7 +245,7 @@ BEGIN
 
     -- Call the sync procedure if we have a target media ID
     IF target_media_id IS NOT NULL THEN
-        PERFORM sync_media_availability(target_media_id);
+        CALL sync_media_availability(target_media_id);
     END IF;
 
     -- Return appropriate record

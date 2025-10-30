@@ -8,6 +8,20 @@
 #include "src/domain/media/MediaCopy.h"
 #include "src/domain/borrow/BorrowRecord.h"
 #include "src/domain/user/User.h"
+#include "src/domain/media/MediaCopy.h"
+#include "src/utils/DateTimeUtils.h"
+#include "src/domain/user/User.h"
+#include "src/domain/user/Admin.h"
+#include "src/domain/user/Member.h"
+#include "src/domain/user/Student.h"
+#include "src/domain/user/Teacher.h"
+#include "src/domain/user/Librarian.h"
+#include "src/domain/media/Media.h"
+#include "src/domain/media/Book.h"
+#include "src/domain/media/Magazine.h"
+#include "src/domain/media/DVD.h"
+#include "src/domain/media/AudioBook.h"
+
 
 // Simple DTO for Auth queries
 struct UserRow {
@@ -37,8 +51,10 @@ public:
     std::optional<BorrowRecord> findActiveBorrow(int userId, long copyId);
 
     // --- User Management ---
-    int insertUser(const std::string& name, const std::string& email,
-                   const std::string& hashedPassword, const std::string& role);
+    int insertUser( const std::string& name, const std::string& email,
+                    const std::string& hashedPassword, const std::string& role,
+                    const std::optional<std::string>& gradeLevel,
+                    const std::optional<std::string>& department);
     void assignRole(int userId, const std::string& role);
     std::vector<std::shared_ptr<User>> getAllUsers();
     std::optional<UserRow> getUserByName(const std::string& username);

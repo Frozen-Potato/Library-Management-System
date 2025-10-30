@@ -10,6 +10,7 @@ public:
         bool valid = false;
     };
 
+    JwtMiddleware() = default;
     JwtMiddleware(std::shared_ptr<JwtHelper> jwt) : jwt_(std::move(jwt)) {}
 
     void before_handle(crow::request& req, crow::response& res, context& ctx);

@@ -9,8 +9,10 @@ BorrowController::BorrowController(std::shared_ptr<LibraryService> service)
 
 void BorrowController::registerRoutes(crow::App<JwtMiddleware>& app) {
     CROW_ROUTE(app, "/api/borrow").methods(crow::HTTPMethod::POST)(
-        [this](const crow::request& req, crow::response& res, const JwtMiddleware::context& ctx) {
+        [this, &app](const crow::request& req, crow::response& res) {
             try {
+                const auto& ctx = app.get_context<JwtMiddleware>(req);
+
                 if (!ctx.valid)
                     throw UnauthorizedException("Missing or invalid JWT");
 

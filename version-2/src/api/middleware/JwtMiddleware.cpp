@@ -2,6 +2,11 @@
 #include <jwt-cpp/jwt.h>
 
 void JwtMiddleware::before_handle(crow::request& req, crow::response& res, context& ctx) {
+    if (req.url.find("/api/login") == 0 || req.url.find("/api/media") == 0) {
+        ctx.valid = false;
+        return;
+    }
+
     auto authHeader = req.get_header_value("Authorization");
     if (authHeader.empty() || authHeader.rfind("Bearer ", 0) != 0) {
         res.code = 401;

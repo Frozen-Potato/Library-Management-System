@@ -6,7 +6,18 @@ struct Config {
     std::string mongoUri;
     std::string mongoDb;
     std::string mongoCollection;
-    int queueIntervalSec = 2;
+    int queueIntervalSec;
+
+    std::string restHost;
+    int restPort;
+    std::string grpcHost;
+    int grpcPort;
+
+    std::string jwtSecret;
+    int jwtExpirationMinutes;
+
+    std::string appEnv;
+    std::string logLevel;
 };
 
 class ConfigManager {

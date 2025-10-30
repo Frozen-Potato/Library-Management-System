@@ -11,21 +11,32 @@ void UserController::registerRoutes(crow::App<JwtMiddleware>& app) {
 
     // GET /api/users
     CROW_ROUTE(app, "/api/users").methods(crow::HTTPMethod::GET)(
-        [this](const crow::request&, crow::response& res, const JwtMiddleware::context& ctx) {
+        [this, &app](const crow::request& req, crow::response& res) {
             try {
+                const auto& ctx = app.get_context<JwtMiddleware>(req);
                 if (!ctx.valid)
                     throw UnauthorizedException("Missing or invalid JWT");
 
                 auto users = userService_->listUsers();
                 json result = json::array();
                 for (auto& u : users) {
-                    result.push_back({
-                        {"id", u->getId()},
-                        {"name", u->getName()},
-                        {"email", u->getEmail()},
-                        {"role", u->getRoleName()}
-                    });
+                json userJson = {
+                    {"id", u->getId()},
+                    {"name", u->getName()},
+                    {"email", u->getEmail()},
+                    {"role", u->getRoleName()},
+                };
+
+                // Add subclass-specific details
+                if (auto student = dynamic_cast<Student*>(u.get())) {
+                    userJson["grade_level"] = student->getGrade();
+                } 
+                else if (auto teacher = dynamic_cast<Teacher*>(u.get())) {
+                    userJson["department"] = teacher->getDepartment();
                 }
+
+                result.push_back(userJson);
+            }
 
                 res.code = 200;
                 res.write(result.dump());
@@ -38,34 +49,66 @@ void UserController::registerRoutes(crow::App<JwtMiddleware>& app) {
 
     // POST /api/users
     CROW_ROUTE(app, "/api/users").methods(crow::HTTPMethod::POST)(
-        [this](const crow::request& req, crow::response& res, const JwtMiddleware::context& ctx) {
-            try {
-                if (!ctx.valid)
-                    throw UnauthorizedException("Missing or invalid JWT");
+    [this, &app](const crow::request& req, crow::response& res) {
+        try {
+            const auto& ctx = app.get_context<JwtMiddleware>(req);
+            if (!ctx.valid)
+                throw UnauthorizedException("Missing or invalid JWT");
 
-                auto body = parseJsonSafe(req.body);
-                if (!body.contains("name") || !body.contains("email") || !body.contains("password"))
-                    throw ValidationException("Missing required fields: name, email, or password");
+            auto body = parseJsonSafe(req.body);
 
-                std::string role = body.value("role", "MEMBER");
-                int userId = userService_->createUser(
-                    body["name"], body["email"], body["password"], role
-                );
+            // --- Validate required fields ---
+            if (!body.contains("name") || !body.contains("email") || !body.contains("password"))
+                throw ValidationException("Missing required fields: name, email, or password");
 
-                res.code = 201;
-                res.write(makeJsonSuccess("User created with ID " + std::to_string(userId)));
+            // --- Extract role (default to Member if not specified) ---
+            std::string role = body.value("role", "Member");
+
+            // --- Extract optional Student/Teacher attributes ---
+            std::optional<std::string> gradeLevel = std::nullopt;
+            std::optional<std::string> department = std::nullopt;
+
+            if (body.contains("grade_level") && body["grade_level"].is_string()) {
+                gradeLevel = body["grade_level"].get<std::string>();
             }
-            catch (const ValidationException& e) { res.code = 400; res.write(makeJsonError(e.what())); }
-            catch (const UnauthorizedException& e) { res.code = 401; res.write(makeJsonError(e.what())); }
-            catch (const DatabaseException& e) { res.code = 500; res.write(makeJsonError(e.what())); }
-            catch (const std::exception& e) { res.code = 500; res.write(makeJsonError(e.what())); }
-            res.end();
-        });
+            if (body.contains("department") && body["department"].is_string()) {
+                department = body["department"].get<std::string>();
+            }
+
+            // --- Create user through service layer ---
+            int userId = userService_->createUser(
+                body["name"], body["email"], body["password"], role, gradeLevel, department
+            );
+
+            res.code = 201;
+            res.write(makeJsonSuccess("User created with ID " + std::to_string(userId)));
+        }
+        catch (const ValidationException& e) {
+            res.code = 400;
+            res.write(makeJsonError(e.what()));
+        }
+        catch (const UnauthorizedException& e) {
+            res.code = 401;
+            res.write(makeJsonError(e.what()));
+        }
+        catch (const DatabaseException& e) {
+            res.code = 500;
+            res.write(makeJsonError(e.what()));
+        }
+        catch (const std::exception& e) {
+            res.code = 500;
+            res.write(makeJsonError(e.what()));
+        }
+
+        res.end();
+    });
+
 
     // POST /api/users/assign-role
     CROW_ROUTE(app, "/api/users/assign-role").methods(crow::HTTPMethod::POST)(
-        [this](const crow::request& req, crow::response& res, const JwtMiddleware::context& ctx) {
+        [this, &app](const crow::request& req, crow::response& res) {
             try {
+                const auto& ctx = app.get_context<JwtMiddleware>(req);
                 if (!ctx.valid)
                     throw UnauthorizedException("Missing or invalid JWT");
                 if (ctx.role != "ADMIN")
