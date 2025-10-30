@@ -9,6 +9,45 @@ UserController::UserController(std::shared_ptr<UserService> userService)
 
 void UserController::registerRoutes(crow::App<JwtMiddleware>& app) {
 
+    // Register
+    CROW_ROUTE(app, "/api/register").methods(crow::HTTPMethod::POST)(
+        [this](const crow::request& req) {
+            try {
+                auto body = parseJsonSafe(req.body);
+
+                if (!body.contains("name") || !body.contains("email") ||
+                    !body.contains("password") || !body.contains("role")) {
+                    throw ValidationException("Missing required fields: name, email, password, or role");
+                }
+
+                std::string name = body["name"];
+                std::string email = body["email"];
+                std::string password = body["password"];
+                std::string role = body["role"];
+
+                std::optional<std::string> gradeLevel = std::nullopt;
+                std::optional<std::string> department = std::nullopt;
+
+                if (body.contains("grade_level") && !body["grade_level"].is_null())
+                    gradeLevel = body["grade_level"].get<std::string>();
+                if (body.contains("department") && !body["department"].is_null())
+                    department = body["department"].get<std::string>();
+
+                int userId = userService_->createUser(name, email, password, role, gradeLevel, department);
+
+                json resp = {
+                    {"message", "User registered successfully"},
+                    {"user_id", userId},
+                    {"role", role}
+                };
+
+                return crow::response(201, resp.dump());
+            }
+            catch (const ValidationException& e) { return crow::response(400, makeJsonError(e.what())); }
+            catch (const DatabaseException& e) { return crow::response(500, makeJsonError(e.what())); }
+            catch (const std::exception& e) { return crow::response(500, makeJsonError(e.what())); }
+        });
+
     // GET /api/users
     CROW_ROUTE(app, "/api/users").methods(crow::HTTPMethod::GET)(
         [this, &app](const crow::request& req, crow::response& res) {

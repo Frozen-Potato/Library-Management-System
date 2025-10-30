@@ -302,18 +302,22 @@ std::vector<std::shared_ptr<User>> PostgresAdapter::getAllUsers() {
 std::optional<UserRow> PostgresAdapter::getUserByName(const std::string& username) {
     pqxx::work txn(*conn_);
 
-    auto r = txn.exec(
+    auto r = txn.exec_params(
         "SELECT u.id, u.name, u.email, u.password_hash, "
         "       u.user_type, "
         "       r.name AS role_name, "
         "       s.grade_level, "
-        "       t.department "
+        "       t.department, "
+        "       l.id AS librarian_id, "
+        "       a.id AS admin_id "
         "FROM users u "
         "LEFT JOIN user_roles ur ON u.id = ur.user_id "
         "LEFT JOIN roles r ON ur.role_id = r.id "
         "LEFT JOIN members m ON u.id = m.id "
         "LEFT JOIN students s ON m.id = s.id "
         "LEFT JOIN teachers t ON m.id = t.id "
+        "LEFT JOIN librarians l ON u.id = l.id "
+        "LEFT JOIN admins a ON u.id = a.id "
         "WHERE u.name = $1 "
         "LIMIT 1;",
         pqxx::params{username});
@@ -334,9 +338,9 @@ std::optional<UserRow> PostgresAdapter::getUserByName(const std::string& usernam
     std::shared_ptr<User> user;
 
     // --- Determine user type based on schema ---
-    if (userType == "ADMIN") {
+    if (!row["admin_id"].is_null() || userType == "ADMIN") {
         user = std::make_shared<Admin>(id, name, email);
-    } else if (userType == "LIBRARIAN") {
+    } else if (!row["librarian_id"].is_null() || userType == "LIBRARIAN") {
         user = std::make_shared<Librarian>(id, name, email);
     } else if (userType == "MEMBER") {
         // Check subclass via member joins
@@ -350,13 +354,14 @@ std::optional<UserRow> PostgresAdapter::getUserByName(const std::string& usernam
             user = std::make_shared<Member>(id, name, email);
         }
     } else {
-        // Fallback (unexpected user_type)
+        // Fallback for unexpected type
         user = std::make_shared<Member>(id, name, email);
     }
 
     txn.commit();
 
-    // Keep returning UserRow for auth layer
-    return UserRow{id, name, email,  passwordHash, roleName};
+    // Return UserRow for authentication layer
+    return UserRow{id, name, email, passwordHash, roleName};
 }
+
 
