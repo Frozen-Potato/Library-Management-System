@@ -89,7 +89,8 @@ INSERT INTO roles (name, description) VALUES
 ('ADMIN', 'Full system access'),
 ('LIBRARIAN', 'Manage library operations'),
 ('MEMBER', 'Basic library access'),
-('TEACHER', 'Enhanced borrowing privileges');
+('TEACHER', 'Enhanced borrowing privileges'),
+('STUDENT', 'Basic library access');
 
 INSERT INTO permissions (name, description) VALUES
 ('manage_users', 'Create, update, delete users'),
@@ -110,7 +111,9 @@ INSERT INTO role_permissions (role_id, permission_id) VALUES
 -- MEMBER: basic permissions
 (3, 5), (3, 6),
 -- TEACHER: extended permissions
-(4, 5), (4, 6), (4, 4);
+(4, 5), (4, 6), (4, 4),
+-- STUDENT: basic permissions
+(5, 5), (5, 6);
 
 -- User-Role mappings
 INSERT INTO user_roles (user_id, role_id) VALUES

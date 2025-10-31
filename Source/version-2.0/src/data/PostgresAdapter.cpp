@@ -206,6 +206,8 @@ int PostgresAdapter::insertUser(const std::string& name, const std::string& emai
                                 const std::optional<std::string>& gradeLevel,
                                 const std::optional<std::string>& department) {
     pqxx::work txn(*conn_);
+    
+    std::cout << role;
 
     std::string userType = (role == "Admin") || (role == "ADMIN")  ? "ADMIN" :
                            (role == "Librarian") || (role == "LIBRARIAN") ? "LIBRARIAN" : "MEMBER";
