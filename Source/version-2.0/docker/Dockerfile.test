@@ -1,0 +1,35 @@
+# Reuse the build environment from main Dockerfile
+FROM builder AS test-builder
+
+# Make sure gtest is available
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    libgtest-dev cmake && \
+    cd /usr/src/gtest && cmake . && make && make install && \
+    rm -rf /var/lib/apt/lists/*
+
+# Rebuild the project with tests enabled
+WORKDIR /app
+COPY . .
+
+# Configure build with tests enabled
+RUN cmake -B build -DCMAKE_BUILD_TYPE=Debug -DENABLE_TESTS=ON && \
+    cmake --build build -j$(nproc)
+
+# ---- Test runtime ----
+FROM ubuntu:22.04 AS test-runner
+
+# Minimal runtime dependencies
+RUN apt-get update && apt-get install -y \
+    libpq5 libssl3 libcurl4 zlib1g \
+    libmongoc-1.0-0 libbson-1.0-0 ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy built test binary and shared libs from builder
+COPY --from=test-builder /app/build/run_tests /app/run_tests
+COPY --from=test-builder /usr/local /usr/local
+
+RUN ldconfig
+
+CMD ["./run_tests"]

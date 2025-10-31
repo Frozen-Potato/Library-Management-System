@@ -5,7 +5,7 @@
 JwtHelper::JwtHelper(const std::string& secret, const std::string& issuer, int expiresInMinutes)
     : secret_(secret), issuer_(issuer), expiresInMinutes_(expiresInMinutes) {}
 
-std::string JwtHelper::generateToken(int userId, const std::string& role) const {
+std::string JwtHelper::generateToken(int userId, const std::string role) const {
     auto now = std::chrono::system_clock::now();
     auto exp = now + std::chrono::minutes(expiresInMinutes_);
 

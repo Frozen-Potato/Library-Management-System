@@ -135,13 +135,13 @@ std::vector<std::shared_ptr<Media>> PostgresAdapter::getAllMedia() {
                 std::string author =
                     row["author"].is_null() ? "Unknown" : row["author"].as<std::string>();
                 std::string publisher =
-                    row["book_publisher"].is_null() ? "Unknown" : row["book_publisher"].as<std::string>();
+                    row["publisher"].is_null() ? "Unknown" : row["publisher"].as<std::string>();
                 out.push_back(std::make_shared<Book>(id, title, author, publisher));
             }
             else if (type == "Magazine") {
                 int issue = row["issue_number"].is_null() ? 0 : row["issue_number"].as<int>();
                 std::string publisher =
-                    row["magazine_publisher"].is_null() ? "Unknown" : row["magazine_publisher"].as<std::string>();
+                    row["publisher"].is_null() ? "Unknown" : row["publisher"].as<std::string>();
                 out.push_back(std::make_shared<Magazine>(id, title, issue, publisher));
             }
             else if (type == "DVD") {
@@ -207,8 +207,8 @@ int PostgresAdapter::insertUser(const std::string& name, const std::string& emai
                                 const std::optional<std::string>& department) {
     pqxx::work txn(*conn_);
 
-    std::string userType = (role == "Admin") ? "ADMIN" :
-                           (role == "Librarian") ? "LIBRARIAN" : "MEMBER";
+    std::string userType = (role == "Admin") || (role == "ADMIN")  ? "ADMIN" :
+                           (role == "Librarian") || (role == "LIBRARIAN") ? "LIBRARIAN" : "MEMBER";
 
     auto r = txn.exec(
         "INSERT INTO users (name, email, password_hash, user_type) "
@@ -263,46 +263,56 @@ std::vector<std::shared_ptr<User>> PostgresAdapter::getAllUsers() {
         "LEFT JOIN teachers t ON m.id = t.id "
         "ORDER BY u.id;"
     );
-
     txn.commit();
 
+    auto col_user_id    = res.column_number("user_id");
+    auto col_name       = res.column_number("name");
+    auto col_email      = res.column_number("email");
+    auto col_user_type  = res.column_number("user_type");
+    // Optional columns 
+    auto col_grade      = res.column_number("grade_level");
+    auto col_department = res.column_number("department");   
+
     std::vector<std::shared_ptr<User>> users;
+    users.reserve(res.size());
 
     for (const auto& row : res) {
-        int id = row["user_id"].as<int>();
-        std::string name = row["name"].as<std::string>();
-        std::string email = row["email"].as<std::string>();
-        std::string userType = row["user_type"].as<std::string>();
+        int id = row[col_user_id].as<int>();
+        std::string name = row[col_name].as<std::string>();
+        std::string email = row[col_email].as<std::string>();
+        std::string userType = row[col_user_type].as<std::string>();
 
         if (userType == "ADMIN") {
             users.push_back(std::make_shared<Admin>(id, name, email));
-        } 
+        }
         else if (userType == "LIBRARIAN") {
             users.push_back(std::make_shared<Librarian>(id, name, email));
-        } 
+        }
         else if (userType == "MEMBER") {
-            if (!row["grade_level"].is_null()) {
-                std::string grade = row["grade_level"].as<std::string>();
+            // Only touch optional columns if they exist in the result set
+            bool hasGrade = (col_grade != -1) && !row[col_grade].is_null();
+            bool hasDept  = (col_department != -1) && !row[col_department].is_null();
+
+            if (hasGrade) {
+                std::string grade = row[col_grade].as<std::string>();
                 users.push_back(std::make_shared<Student>(id, name, email, grade));
-            } 
-            else if (!row["department"].is_null()) {
-                std::string dept = row["department"].as<std::string>();
+            } else if (hasDept) {
+                std::string dept = row[col_department].as<std::string>();
                 users.push_back(std::make_shared<Teacher>(id, name, email, dept));
-            } 
-            else {
+            } else {
                 users.push_back(std::make_shared<Member>(id, name, email));
             }
         }
     }
-
     return users;
 }
+
 
 
 std::optional<UserRow> PostgresAdapter::getUserByName(const std::string& username) {
     pqxx::work txn(*conn_);
 
-    auto r = txn.exec_params(
+    auto r = txn.exec(
         "SELECT u.id, u.name, u.email, u.password_hash, "
         "       u.user_type, "
         "       r.name AS role_name, "

@@ -65,6 +65,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+      target: runtime 
     container_name: library_server
     depends_on:
       postgres:
@@ -89,6 +90,33 @@ services:
     restart: unless-stopped
     networks:
       - library_net
+  library_tests:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: test
+    container_name: library_tests
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    env_file:
+      - ../.env
+    environment:
+      POSTGRES_URI: postgresql://postgres:password@postgres:5432/librarydb
+      MONGO_URI: mongodb://root:password@mongo:27017
+      MONGO_DB: library_logs
+      MONGO_COLLECTION: audit_events
+      JWT_SECRET: super_secret_jwt_key
+      JWT_EXPIRATION_MINUTES: 6000
+    command: bash -c "cmake -S . -B build && cmake --build build --target run_tests && cd build && ctest --output-on-failure"
+    volumes:
+      - ..:/app
+      - /app/build
+    networks:
+      - library_net
+    restart: "no"
 
 volumes:
   pgdata:

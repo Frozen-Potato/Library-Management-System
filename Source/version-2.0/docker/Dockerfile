@@ -96,7 +96,7 @@ RUN rm -f /app/proto/*.pb.* && \
 RUN cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=20 && cmake --build build -j$(nproc)
 
 # ---- Runtime Stage ----
-FROM ubuntu:22.04
+FROM ubuntu:22.04 AS runtime
 
 RUN apt-get update && apt-get install -y \
     libpq5 libssl3 libcurl4 zlib1g \
@@ -117,3 +117,30 @@ RUN ldconfig
 
 EXPOSE 8080 50051
 CMD ["./library_server"]
+
+# ---- Test Stage ----
+FROM builder AS test
+
+# Install GoogleTest
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    libgtest-dev cmake && \
+    cd /usr/src/gtest && \
+    cmake . && make && \
+    cp lib/libgtest*.a /usr/lib/ && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY . .
+
+COPY --from=builder /app/proto /app/proto
+RUN if [ -f /app/.env ]; then echo "Copying .env from builder..."; \
+    cp /app/.env /app/.env; \
+    else echo "No .env file found in builder — skipping."; fi || true
+COPY --from=builder /usr/local /usr/local
+
+# Build tests
+RUN cmake -B build -DCMAKE_BUILD_TYPE=Debug -DENABLE_TESTS=ON && \
+    cmake --build build -j$(nproc)
+
+CMD ["bash", "-c", "echo '.env'; env; echo '.env'; ./build/run_tests"]
+

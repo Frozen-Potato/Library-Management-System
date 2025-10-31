@@ -98,7 +98,7 @@ target_link_libraries(library_server
         protobuf::libprotobuf
         gpr
         address_sorting
-        bcrypt  # Added bcrypt library
+        bcrypt
 )
 
 
@@ -116,3 +116,42 @@ target_include_directories(library_server PRIVATE
 set_target_properties(library_server PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
 )
+
+# Test
+
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+)
+FetchContent_MakeAvailable(googletest)
+
+enable_testing()
+
+add_executable(run_tests
+    tests/test_main.cpp
+    tests/test_user_service.cpp
+    tests/test_auth_service.cpp
+
+    src/application/services/UserService.cpp
+    src/application/services/AuthService.cpp
+    src/data/PostgresAdapter.cpp
+    src/infrastructure/jwt/JwtHelper.cpp
+    src/infrastructure/crypto/PasswordHasher.cpp
+)
+
+target_link_libraries(run_tests
+    PRIVATE
+        gtest_main
+        pqxx
+        pq       
+        pthread
+        crypto
+        ssl
+        bcrypt
+)
+
+add_test(NAME run_tests COMMAND run_tests)
+
+include(GoogleTest)
+gtest_discover_tests(run_tests)

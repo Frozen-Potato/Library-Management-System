@@ -8,7 +8,7 @@ public:
               int expiresInMinutes = 60);
 
     // Create token for user
-    std::string generateToken(int userId, const std::string& role) const;
+    std::string generateToken(int userId, const std::string role) const;
 
     // Verify token and return whether it’s valid
     bool verify(const std::string& token) const;

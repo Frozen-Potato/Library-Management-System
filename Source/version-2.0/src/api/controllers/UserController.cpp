@@ -23,7 +23,10 @@ void UserController::registerRoutes(crow::App<JwtMiddleware>& app) {
                 std::string name = body["name"];
                 std::string email = body["email"];
                 std::string password = body["password"];
-                std::string role = body["role"];
+                std::string lowerrole = body["role"];
+                std::string role = lowerrole;
+                std::transform(role.begin(), role.end(), role.begin(),
+                    [](unsigned char c){ return std::toupper(c); });
 
                 std::optional<std::string> gradeLevel = std::nullopt;
                 std::optional<std::string> department = std::nullopt;
