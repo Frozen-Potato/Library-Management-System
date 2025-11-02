@@ -61,7 +61,6 @@ CREATE TABLE IF NOT EXISTS users (
     name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
-    user_type TEXT CHECK (user_type IN ('MEMBER','LIBRARIAN','ADMIN')) NOT NULL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -70,7 +69,6 @@ CREATE INDEX IF NOT EXISTS idx_users_name ON users(name);
 
 CREATE TABLE IF NOT EXISTS members (
     id INT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    role TEXT,
     borrow_limit INT DEFAULT 3
 );
 
@@ -95,15 +93,13 @@ CREATE TABLE IF NOT EXISTS admins (
 -- Roles & Permissions ===
 CREATE TABLE IF NOT EXISTS roles (
     id SERIAL PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL,
-    description TEXT
+    name TEXT UNIQUE NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS permissions (
     id SERIAL PRIMARY KEY,
     action TEXT NOT NULL,
-    table_name TEXT NOT NULL,
-    description TEXT
+    table_name TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS role_permissions (

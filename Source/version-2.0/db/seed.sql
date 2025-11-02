@@ -43,36 +43,36 @@ INSERT INTO media_type (name, description) VALUES
 
 -- ===== USERS =====
 -- Note: password_hash is bcrypt hash of 'password123' for demo purposes
-INSERT INTO users (name, email, password_hash, user_type) VALUES
+INSERT INTO users (name, email, password_hash) VALUES
 -- Admins
-('Alice Admin', 'alice.admin@library.edu', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'ADMIN'),
-('Bob Administrator', 'bob.admin@library.edu', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'ADMIN'),
+('Alice Admin', 'alice.admin@library.edu', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'),
+('Bob Administrator', 'bob.admin@library.edu', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'),
 
 -- Librarians
-('Carol Librarian', 'carol.lib@library.edu', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'LIBRARIAN'),
-('David Keeper', 'david.lib@library.edu', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'LIBRARIAN'),
+('Carol Librarian', 'carol.lib@library.edu', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'),
+('David Keeper', 'david.lib@library.edu', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'),
 
 -- Members (Students)
-('Emma Student', 'emma.s@school.edu', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'MEMBER'),
-('Frank Learner', 'frank.l@school.edu', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'MEMBER'),
-('Grace Scholar', 'grace.s@school.edu', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'MEMBER'),
-('Henry Reader', 'henry.r@school.edu', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'MEMBER'),
+('Emma Student', 'emma.s@school.edu', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'),
+('Frank Learner', 'frank.l@school.edu', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'),
+('Grace Scholar', 'grace.s@school.edu', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'),
+('Henry Reader', 'henry.r@school.edu', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'),
 
 -- Members (Teachers)
-('Iris Teacher', 'iris.t@school.edu', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'MEMBER'),
-('Jack Professor', 'jack.p@school.edu', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'MEMBER');
+('Iris Teacher', 'iris.t@school.edu', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'),
+('Jack Professor', 'jack.p@school.edu', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy');
 
 -- ===== USER TYPE TABLES =====
 INSERT INTO admins (id) VALUES (1), (2);
 INSERT INTO librarians (id) VALUES (3), (4);
 
-INSERT INTO members (id, role, borrow_limit) VALUES
-(5, 'STUDENT', 3),
-(6, 'STUDENT', 3),
-(7, 'STUDENT', 3),
-(8, 'STUDENT', 3),
-(9, 'TEACHER', 5),
-(10, 'TEACHER', 5);
+INSERT INTO members (id, borrow_limit) VALUES
+(5, 3),
+(6, 3),
+(7, 3),
+(8, 3),
+(9, 5),
+(10, 5);
 
 INSERT INTO students (id, grade_level) VALUES
 (5, 'Grade 9'),
@@ -85,34 +85,34 @@ INSERT INTO teachers (id, department) VALUES
 (10, 'English Literature');
 
 -- ===== ROLES & PERMISSIONS =====
-INSERT INTO roles (name, description) VALUES
-('ADMIN', 'Full system access'),
-('LIBRARIAN', 'Manage library operations'),
-('MEMBER', 'Basic library access'),
-('TEACHER', 'Enhanced borrowing privileges'),
-('STUDENT', 'Basic library access');
+INSERT INTO roles (name) VALUES
+('ADMIN'),
+('LIBRARIAN'),
+('MEMBER'),
+('TEACHER'),
+('STUDENT');
 
 -- Updated permissions with action and table_name
-INSERT INTO permissions (action, table_name, description) VALUES
-('CREATE', 'users', 'Create new users'),
-('UPDATE', 'users', 'Update user information'),
-('DELETE', 'users', 'Delete users'),
-('READ', 'users', 'View user information'),
-('CREATE', 'media', 'Add new media items'),
-('UPDATE', 'media', 'Edit media information'),
-('DELETE', 'media', 'Remove media items'),
-('READ', 'media', 'View media catalog'),
-('CREATE', 'media_copy', 'Add physical copies'),
-('UPDATE', 'media_copy', 'Update copy information'),
-('DELETE', 'media_copy', 'Remove physical copies'),
-('READ', 'media_copy', 'View copy information'),
-('CREATE', 'active_borrow', 'Create borrow records'),
-('UPDATE', 'active_borrow', 'Modify borrow records'),
-('DELETE', 'active_borrow', 'Cancel borrow records'),
-('READ', 'active_borrow', 'View borrow information'),
-('READ', 'borrow_history', 'Access borrow history'),
-('READ', 'reports', 'View system reports'),
-('UPDATE', 'system_config', 'Modify system settings');
+INSERT INTO permissions (action, table_name) VALUES
+('CREATE', 'users'),
+('UPDATE', 'users'),
+('DELETE', 'users'),
+('READ', 'users'),
+('CREATE', 'media'),
+('UPDATE', 'media'),
+('DELETE', 'media'),
+('READ', 'media'),
+('CREATE', 'media_copy'),
+('UPDATE', 'media_copy'),
+('DELETE', 'media_copy'),
+('READ', 'media_copy'),
+('CREATE', 'active_borrow'),
+('UPDATE', 'active_borrow'),
+('DELETE', 'active_borrow'),
+('READ', 'active_borrow'),
+('READ', 'borrow_history'),
+('READ', 'reports'),
+('UPDATE', 'system_config');
 
 -- Role-Permission mappings
 INSERT INTO role_permissions (role_id, permission_id) VALUES
@@ -143,12 +143,12 @@ INSERT INTO user_roles (user_id, role_id) VALUES
 (2, 1), -- Bob: Admin
 (3, 2), -- Carol: Librarian
 (4, 2), -- David: Librarian
-(5, 5), -- Emma: Student
-(6, 5), -- Frank: Student
-(7, 5), -- Grace: Student
-(8, 5), -- Henry: Student
-(9, 4), -- Iris: Teacher
-(10, 4); -- Jack: Teacher
+(5, 3), (5, 5), -- Emma: Member + Student
+(6, 3), (6, 5), -- Frank: Member + Student
+(7, 3), (7, 5), -- Grace: Member + Student
+(8, 3), (8, 5), -- Henry: Member + Student
+(9, 3), (9, 4), -- Iris: Member + Teacher
+(10, 3), (10, 4); -- Jack: Member + Teacher
 
 -- ===== MEDIA ITEMS =====
 -- Books
