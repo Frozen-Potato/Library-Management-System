@@ -258,14 +258,12 @@ erDiagram
     }
 
     DVD {
-        bigint media_id PK "FK"
-        int duration_minutes
+        bigint media_id PK
         text director
     }
 
     AUDIOBOOK {
-        bigint media_id PK "FK"
-        int length_minutes
+        bigint media_id PK
         text narrator
     }
 
@@ -301,13 +299,11 @@ erDiagram
         text name
         text email
         text password_hash
-        text user_type
         timestamptz created_at
     }
 
     MEMBERS {
         int id PK "FK"
-        text role
         int borrow_limit
     }
 
@@ -337,13 +333,12 @@ erDiagram
     ROLES {
         int id PK
         text name UK
-        text description
     }
 
     PERMISSIONS {
         int id PK
-        text name UK
-        text description
+        text action NOT NULL
+        text table_name NOT NULL
     }
 
     ROLE_PERMISSIONS {

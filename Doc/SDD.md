@@ -119,7 +119,6 @@ classDiagram
         #name : string
         #email : string
         #passwordHash : string
-        #userType : string
         #createdAt : DateTime
         +getId() int
         +getName() string
@@ -129,7 +128,6 @@ classDiagram
     }
 
     class Member {
-        #role : string
         #borrowLimit : int
         +getRole() string
         +getBorrowLimit() int
