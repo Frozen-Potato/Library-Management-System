@@ -92,28 +92,50 @@ INSERT INTO roles (name, description) VALUES
 ('TEACHER', 'Enhanced borrowing privileges'),
 ('STUDENT', 'Basic library access');
 
-INSERT INTO permissions (name, description) VALUES
-('manage_users', 'Create, update, delete users'),
-('manage_media', 'Add, edit, remove media items'),
-('manage_copies', 'Handle physical copies'),
-('view_reports', 'Access system reports'),
-('borrow_media', 'Borrow library items'),
-('return_media', 'Return borrowed items'),
-('manage_borrows', 'Override borrow rules'),
-('system_config', 'Configure system settings');
+-- Updated permissions with action and table_name
+INSERT INTO permissions (action, table_name, description) VALUES
+('CREATE', 'users', 'Create new users'),
+('UPDATE', 'users', 'Update user information'),
+('DELETE', 'users', 'Delete users'),
+('READ', 'users', 'View user information'),
+('CREATE', 'media', 'Add new media items'),
+('UPDATE', 'media', 'Edit media information'),
+('DELETE', 'media', 'Remove media items'),
+('READ', 'media', 'View media catalog'),
+('CREATE', 'media_copy', 'Add physical copies'),
+('UPDATE', 'media_copy', 'Update copy information'),
+('DELETE', 'media_copy', 'Remove physical copies'),
+('READ', 'media_copy', 'View copy information'),
+('CREATE', 'active_borrow', 'Create borrow records'),
+('UPDATE', 'active_borrow', 'Modify borrow records'),
+('DELETE', 'active_borrow', 'Cancel borrow records'),
+('READ', 'active_borrow', 'View borrow information'),
+('READ', 'borrow_history', 'Access borrow history'),
+('READ', 'reports', 'View system reports'),
+('UPDATE', 'system_config', 'Modify system settings');
 
 -- Role-Permission mappings
 INSERT INTO role_permissions (role_id, permission_id) VALUES
--- ADMIN: all permissions
+-- ADMIN: all permissions (1-19)
 (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8),
+(1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16),
+(1, 17), (1, 18), (1, 19),
+
 -- LIBRARIAN: operational permissions
-(2, 2), (2, 3), (2, 4), (2, 5), (2, 6), (2, 7),
+(2, 4), (2, 5), (2, 6), (2, 7), (2, 8), -- users read, media CRUD
+(2, 9), (2, 10), (2, 11), (2, 12), -- copies CRUD
+(2, 13), (2, 14), (2, 15), (2, 16), -- borrows CRUD
+(2, 17), (2, 18), -- history and reports
+
 -- MEMBER: basic permissions
-(3, 5), (3, 6),
--- TEACHER: extended permissions
-(4, 5), (4, 6), (4, 4),
--- STUDENT: basic permissions
-(5, 5), (5, 6);
+(3, 8), (3, 12), -- read media and copies
+(3, 13), (3, 16), (3, 17), -- borrow operations and history
+
+-- TEACHER: extended permissions (same as member + reports)
+(4, 8), (4, 12), (4, 13), (4, 16), (4, 17), (4, 18),
+
+-- STUDENT: basic permissions (same as member)
+(5, 8), (5, 12), (5, 13), (5, 16), (5, 17);
 
 -- User-Role mappings
 INSERT INTO user_roles (user_id, role_id) VALUES
@@ -121,10 +143,10 @@ INSERT INTO user_roles (user_id, role_id) VALUES
 (2, 1), -- Bob: Admin
 (3, 2), -- Carol: Librarian
 (4, 2), -- David: Librarian
-(5, 3), -- Emma: Member
-(6, 3), -- Frank: Member
-(7, 3), -- Grace: Member
-(8, 3), -- Henry: Member
+(5, 3), (5, 5), -- Emma: Member + Student
+(6, 3), (6, 5), -- Frank: Member + Student
+(7, 3), (7, 5), -- Grace: Member + Student
+(8, 3), (8, 5), -- Henry: Member + Student
 (9, 3), (9, 4), -- Iris: Member + Teacher
 (10, 3), (10, 4); -- Jack: Member + Teacher
 
@@ -183,12 +205,12 @@ INSERT INTO media (title, media_type_id, is_available) VALUES
 ('Forrest Gump', 3, TRUE);
 
 INSERT INTO dvd (media_id, director) VALUES
-(18,  'Frank Darabont'),
-(19,  'Francis Ford Coppola'),
-(20,  'Steven Spielberg'),
-(21,  'Christopher Nolan'),
-(22,  'Lana Wachowski, Lilly Wachowski'),
-(23,  'Robert Zemeckis');
+(18, 'Frank Darabont'),
+(19, 'Francis Ford Coppola'),
+(20, 'Steven Spielberg'),
+(21, 'Christopher Nolan'),
+(22, 'Lana Wachowski, Lilly Wachowski'),
+(23, 'Robert Zemeckis');
 
 -- Audiobooks
 INSERT INTO media (title, media_type_id, is_available) VALUES
@@ -198,10 +220,10 @@ INSERT INTO media (title, media_type_id, is_available) VALUES
 ('Atomic Habits', 4, TRUE);
 
 INSERT INTO audiobook (media_id, narrator) VALUES
-(24,  'Michelle Obama'),
-(25,  'Julia Whelan'),
-(26,  'Roger Wayne'),
-(27,  'James Clear');
+(24, 'Michelle Obama'),
+(25, 'Julia Whelan'),
+(26, 'Roger Wayne'),
+(27, 'James Clear');
 
 -- ===== MEDIA COPIES =====
 -- Create multiple copies for popular items
@@ -273,30 +295,30 @@ INSERT INTO active_borrow (user_id, copy_id, borrow_date, due_date) VALUES
 INSERT INTO borrow_history (user_id, copy_id, borrow_date, return_date) VALUES
 -- Emma's history
 (5, 1, NOW() - INTERVAL '45 days', NOW() - INTERVAL '30 days'),
-(5, 18, NOW() - INTERVAL '30 days', NOW() - INTERVAL '23 days'),
+(5, 30, NOW() - INTERVAL '30 days', NOW() - INTERVAL '23 days'),
 -- Frank's history
-(6, 5, NOW() - INTERVAL '60 days', NOW() - INTERVAL '46 days'),
-(6, 19, NOW() - INTERVAL '40 days', NOW() - INTERVAL '33 days'),
+(6, 11, NOW() - INTERVAL '60 days', NOW() - INTERVAL '46 days'),
+(6, 31, NOW() - INTERVAL '40 days', NOW() - INTERVAL '33 days'),
 (6, 13, NOW() - INTERVAL '25 days', NOW() - INTERVAL '20 days'),
 -- Grace's history
 (7, 7, NOW() - INTERVAL '50 days', NOW() - INTERVAL '36 days'),
-(7, 31, NOW() - INTERVAL '35 days', NOW() - INTERVAL '28 days'),
+(7, 37, NOW() - INTERVAL '35 days', NOW() - INTERVAL '28 days'),
 -- Henry's history
-(8, 11, NOW() - INTERVAL '55 days', NOW() - INTERVAL '41 days'),
+(8, 26, NOW() - INTERVAL '55 days', NOW() - INTERVAL '41 days'),
 -- Iris's history
-(9, 20, NOW() - INTERVAL '70 days', NOW() - INTERVAL '56 days'),
-(9, 22, NOW() - INTERVAL '55 days', NOW() - INTERVAL '48 days'),
+(9, 34, NOW() - INTERVAL '70 days', NOW() - INTERVAL '56 days'),
+(9, 38, NOW() - INTERVAL '55 days', NOW() - INTERVAL '48 days'),
 (9, 24, NOW() - INTERVAL '40 days', NOW() - INTERVAL '26 days'),
-(9, 28, NOW() - INTERVAL '25 days', NOW() - INTERVAL '18 days'),
+(9, 14, NOW() - INTERVAL '25 days', NOW() - INTERVAL '18 days'),
 -- Jack's history
 (10, 8, NOW() - INTERVAL '65 days', NOW() - INTERVAL '51 days'),
-(10, 14, NOW() - INTERVAL '50 days', NOW() - INTERVAL '43 days'),
+(10, 15, NOW() - INTERVAL '50 days', NOW() - INTERVAL '43 days'),
 (10, 27, NOW() - INTERVAL '30 days', NOW() - INTERVAL '23 days');
 
 -- ===== TASK QUEUE =====
 INSERT INTO task_queue (task_type, payload, status) VALUES
 ('email_overdue_notice', '{"user_id": 8, "copy_id": 16}', 'PENDING'),
-('generate_monthly_report', '{"month": "2024-09"}', 'DONE'),
+('generate_monthly_report', '{"month": "2024-10"}', 'DONE'),
 ('backup_database', '{"type": "full"}', 'DONE'),
 ('sync_catalog', '{"source": "external_api"}', 'PENDING');
 
@@ -339,6 +361,6 @@ BEGIN
     RAISE NOTICE '- 10 users (2 admins, 2 librarians, 4 students, 2 teachers)';
     RAISE NOTICE '- 5 active borrows';
     RAISE NOTICE '- 14 historical borrows';
-    RAISE NOTICE '- 4 roles with 8 permissions';
+    RAISE NOTICE '- 5 roles with 19 permissions';
     RAISE NOTICE 'Default password for all users: password123';
 END $$;

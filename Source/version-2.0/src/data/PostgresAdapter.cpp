@@ -376,4 +376,27 @@ std::optional<UserRow> PostgresAdapter::getUserByName(const std::string& usernam
     return UserRow{id, name, email, passwordHash, roleName};
 }
 
+std::vector<std::tuple<std::string, std::string, std::string>> PostgresAdapter::getAllRolePermissions() {
+
+    pqxx::work txn(*conn_);
+    auto res = txn.exec(
+        R"(
+            SELECT r.name AS role, p.table_name, p.action
+            FROM role_permissions rp
+            JOIN roles r ON rp.role_id = r.id
+            JOIN permissions p ON rp.permission_id = p.id;
+        )"
+    );
+    txn.commit();
+
+    std::vector<std::tuple<std::string, std::string, std::string>> perms;
+    perms.reserve(res.size());
+    for (const auto& row : res) {
+        perms.emplace_back(row["role"].as<std::string>(),
+                           row["table_name"].as<std::string>(),
+                           row["action"].as<std::string>());
+    }
+    return perms;
+}
+
 

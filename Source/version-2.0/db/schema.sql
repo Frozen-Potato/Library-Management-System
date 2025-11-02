@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_name ON users(name);
 
 CREATE TABLE IF NOT EXISTS members (
     id INT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -100,7 +101,8 @@ CREATE TABLE IF NOT EXISTS roles (
 
 CREATE TABLE IF NOT EXISTS permissions (
     id SERIAL PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL,
+    action TEXT NOT NULL,
+    table_name TEXT NOT NULL,
     description TEXT
 );
 
@@ -264,3 +266,15 @@ AFTER INSERT OR UPDATE OR DELETE
 ON media_copy
 FOR EACH ROW
 EXECUTE FUNCTION fn_sync_media_availability();
+
+CREATE OR REPLACE FUNCTION notify_permission_change()
+RETURNS trigger AS $$
+BEGIN
+  PERFORM pg_notify('permissions_changed', 'reload');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER permission_change_trigger
+AFTER INSERT OR UPDATE OR DELETE ON role_permissions
+FOR EACH STATEMENT EXECUTE FUNCTION notify_permission_change();

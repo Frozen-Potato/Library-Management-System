@@ -3,6 +3,7 @@
 #include <optional>
 #include <vector>
 #include <string>
+#include <unordered_set>
 #include "pqxx/pqxx"
 
 #include "src/domain/media/MediaCopy.h"
@@ -36,7 +37,7 @@ class PostgresAdapter {
 public:
     explicit PostgresAdapter(std::shared_ptr<pqxx::connection> conn);
 
-    // --- Media & Copies ---
+    // Media & Copies
     long createMedia(int mediaTypeId, const std::string& title);
     void attachBook(long mediaId, const std::string& author, const std::string& isbn);
     void attachMagazine(long mediaId, int issueNumber, const std::string& publisher);
@@ -45,12 +46,12 @@ public:
     std::vector<MediaCopy> listCopiesByMedia(long mediaId);
     std::vector<std::shared_ptr<class Media>> getAllMedia();
 
-    // --- Borrowing / Returning ---
+    // Borrowing / Returning
     void addActiveBorrow(int userId, long copyId);
     void markCopyReturned(long copyId);
     std::optional<BorrowRecord> findActiveBorrow(int userId, long copyId);
 
-    // --- User Management ---
+    // User Management
     int insertUser( const std::string& name, const std::string& email,
                     const std::string& hashedPassword, const std::string& role,
                     const std::optional<std::string>& gradeLevel,
@@ -59,6 +60,9 @@ public:
     std::vector<std::shared_ptr<User>> getAllUsers();
     std::optional<UserRow> getUserByName(const std::string& username);
 
+    // Permissions
+    std::vector<std::tuple<std::string, std::string, std::string>> getAllRolePermissions();
+    
 private:
     std::shared_ptr<pqxx::connection> conn_;
 };
