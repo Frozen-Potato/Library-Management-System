@@ -13,7 +13,7 @@ long PostgresAdapter::createMedia(int mediaTypeId, const std::string& title) {
     );
     txn.commit();
     return r[0]["id"].as<long>();
-}
+};
 
 void PostgresAdapter::attachBook(long mediaId, const std::string& author, const std::string& isbn) {
     pqxx::work txn(*conn_);
@@ -23,7 +23,7 @@ void PostgresAdapter::attachBook(long mediaId, const std::string& author, const 
         pqxx::params{mediaId, author, isbn}
     );
     txn.commit();
-}
+};
 
 void PostgresAdapter::attachMagazine(long mediaId, int issueNumber, const std::string& publisher) {
     pqxx::work txn(*conn_);
@@ -33,7 +33,7 @@ void PostgresAdapter::attachMagazine(long mediaId, int issueNumber, const std::s
         pqxx::params{mediaId, issueNumber, publisher}
     );
     txn.commit();
-}
+};
 
 MediaCopy PostgresAdapter::createMediaCopy(long mediaId, const std::string& condition) {
     pqxx::work txn(*conn_);
@@ -53,7 +53,7 @@ MediaCopy PostgresAdapter::createMediaCopy(long mediaId, const std::string& cond
     c.condition = condition_from_string(r[0]["condition"].as<std::string>());
     c.isAvailable = r[0]["is_available"].as<bool>();
     return c;
-}
+};
 
 MediaCopy PostgresAdapter::getCopy(long copyId) {
     pqxx::work txn(*conn_);
@@ -71,7 +71,7 @@ MediaCopy PostgresAdapter::getCopy(long copyId) {
     c.condition = condition_from_string(r[0]["condition"].as<std::string>());
     c.isAvailable = r[0]["is_available"].as<bool>();
     return c;
-}
+};
 
 std::vector<MediaCopy> PostgresAdapter::listCopiesByMedia(long mediaId) {
     pqxx::work txn(*conn_);
@@ -93,7 +93,7 @@ std::vector<MediaCopy> PostgresAdapter::listCopiesByMedia(long mediaId) {
         out.push_back(c);
     }
     return out;
-}
+};
 
 std::vector<std::shared_ptr<Media>> PostgresAdapter::getAllMedia() {
     pqxx::work txn(*conn_);
@@ -165,8 +165,7 @@ std::vector<std::shared_ptr<Media>> PostgresAdapter::getAllMedia() {
     }
 
     return out;
-}
-
+};
 
 //  BORROW 
 void PostgresAdapter::addActiveBorrow(int userId, long copyId) {
@@ -198,7 +197,7 @@ std::optional<BorrowRecord> PostgresAdapter::findActiveBorrow(int userId, long c
         parseTimestamp(r[0]["borrow_date"].as<std::string>()),
         std::nullopt
     );
-}
+};
 
 // USER 
 int PostgresAdapter::insertUser(const std::string& name, const std::string& email,
@@ -209,37 +208,52 @@ int PostgresAdapter::insertUser(const std::string& name, const std::string& emai
     
     std::cout << role;
 
-    std::string userType = (role == "Admin") || (role == "ADMIN")  ? "ADMIN" :
-                           (role == "Librarian") || (role == "LIBRARIAN") ? "LIBRARIAN" : "MEMBER";
+    // Normalize role to uppercase for comparison
+    std::string normalizedRole = role;
+    std::transform(normalizedRole.begin(), normalizedRole.end(), normalizedRole.begin(), ::toupper);
 
+    // Insert into users table (no user_type column)
     auto r = txn.exec(
-        "INSERT INTO users (name, email, password_hash, user_type) "
-        "VALUES ($1, $2, $3, $4) RETURNING id;",
-        pqxx::params{name, email, hashedPassword, userType}
+        "INSERT INTO users (name, email, password_hash) "
+        "VALUES ($1, $2, $3) RETURNING id;",
+        pqxx::params{name, email, hashedPassword}
     );
     int id = r[0]["id"].as<int>();
 
-    if (userType == "MEMBER") {
+    // Insert into appropriate subtype table based on role
+    if (normalizedRole == "ADMIN") {
+        txn.exec("INSERT INTO admins (id) VALUES ($1);", pqxx::params{id});
+    } 
+    else if (normalizedRole == "LIBRARIAN") {
+        txn.exec("INSERT INTO librarians (id) VALUES ($1);", pqxx::params{id});
+    } 
+    else if (normalizedRole == "STUDENT" || normalizedRole == "TEACHER" || normalizedRole == "MEMBER") {
+        // All students, teachers, and members go into members table first
         txn.exec("INSERT INTO members (id) VALUES ($1);", pqxx::params{id});
 
-        if (gradeLevel.has_value()) {
+        // Then insert into appropriate subtype
+        if (normalizedRole == "STUDENT") {
+            std::string grade = gradeLevel.value_or("Unknown");
             txn.exec("INSERT INTO students (id, grade_level) VALUES ($1, $2);",
-                            pqxx::params{id, gradeLevel.value()});
-        } else if (department.has_value()) {
+                     pqxx::params{id, grade});
+        } 
+        else if (normalizedRole == "TEACHER") {
+            std::string dept = department.value_or("Unknown");
             txn.exec("INSERT INTO teachers (id, department) VALUES ($1, $2);",
-                            pqxx::params{id, department.value()});
+                     pqxx::params{id, dept});
         }
     }
 
+    // Assign role in user_roles table
     txn.exec(
         "INSERT INTO user_roles (user_id, role_id) "
         "SELECT $1, id FROM roles WHERE name = $2;",
-        pqxx::params{id, role}
+        pqxx::params{id, normalizedRole}
     );
 
     txn.commit();
     return id;
-}
+};
 
 
 void PostgresAdapter::assignRole(int userId, const std::string& role) {
@@ -251,15 +265,24 @@ void PostgresAdapter::assignRole(int userId, const std::string& role) {
         pqxx::params{userId, role}
     );
     txn.commit();
-}
+};
 
 std::vector<std::shared_ptr<User>> PostgresAdapter::getAllUsers() {
     pqxx::work txn(*conn_);
 
     auto res = txn.exec(
-        "SELECT u.id AS user_id, u.name, u.email, u.user_type, "
+        "SELECT u.id AS user_id, u.name, u.email, "
+        "       CASE "
+        "         WHEN a.id IS NOT NULL THEN 'ADMIN' "
+        "         WHEN l.id IS NOT NULL THEN 'LIBRARIAN' "
+        "         WHEN t.id IS NOT NULL THEN 'TEACHER' "
+        "         WHEN s.id IS NOT NULL THEN 'STUDENT' "
+        "         ELSE 'MEMBER' "
+        "       END AS user_type, "
         "       s.grade_level, t.department "
         "FROM users u "
+        "LEFT JOIN admins a ON u.id = a.id "
+        "LEFT JOIN librarians l ON u.id = l.id "
         "LEFT JOIN members m ON u.id = m.id "
         "LEFT JOIN students s ON m.id = s.id "
         "LEFT JOIN teachers t ON m.id = t.id "
@@ -271,7 +294,6 @@ std::vector<std::shared_ptr<User>> PostgresAdapter::getAllUsers() {
     auto col_name       = res.column_number("name");
     auto col_email      = res.column_number("email");
     auto col_user_type  = res.column_number("user_type");
-    // Optional columns 
     auto col_grade      = res.column_number("grade_level");
     auto col_department = res.column_number("department");   
 
@@ -290,24 +312,20 @@ std::vector<std::shared_ptr<User>> PostgresAdapter::getAllUsers() {
         else if (userType == "LIBRARIAN") {
             users.push_back(std::make_shared<Librarian>(id, name, email));
         }
-        else if (userType == "MEMBER") {
-            // Only touch optional columns if they exist in the result set
-            bool hasGrade = (col_grade != -1) && !row[col_grade].is_null();
-            bool hasDept  = (col_department != -1) && !row[col_department].is_null();
-
-            if (hasGrade) {
-                std::string grade = row[col_grade].as<std::string>();
-                users.push_back(std::make_shared<Student>(id, name, email, grade));
-            } else if (hasDept) {
-                std::string dept = row[col_department].as<std::string>();
-                users.push_back(std::make_shared<Teacher>(id, name, email, dept));
-            } else {
-                users.push_back(std::make_shared<Member>(id, name, email));
-            }
+        else if (userType == "TEACHER") {
+            std::string dept = row[col_department].is_null() ? "" : row[col_department].as<std::string>();
+            users.push_back(std::make_shared<Teacher>(id, name, email, dept));
+        }
+        else if (userType == "STUDENT") {
+            std::string grade = row[col_grade].is_null() ? "" : row[col_grade].as<std::string>();
+            users.push_back(std::make_shared<Student>(id, name, email, grade));
+        }
+        else {
+            users.push_back(std::make_shared<Member>(id, name, email));
         }
     }
     return users;
-}
+};
 
 
 
@@ -316,23 +334,24 @@ std::optional<UserRow> PostgresAdapter::getUserByName(const std::string& usernam
 
     auto r = txn.exec(
         "SELECT u.id, u.name, u.email, u.password_hash, "
-        "       u.user_type, "
-        "       r.name AS role_name, "
-        "       s.grade_level, "
-        "       t.department, "
-        "       l.id AS librarian_id, "
-        "       a.id AS admin_id "
+        "       CASE "
+        "         WHEN a.id IS NOT NULL THEN 'ADMIN' "
+        "         WHEN l.id IS NOT NULL THEN 'LIBRARIAN' "
+        "         WHEN t.id IS NOT NULL THEN 'TEACHER' "
+        "         WHEN s.id IS NOT NULL THEN 'STUDENT' "
+        "         ELSE 'MEMBER' "
+        "       END AS role "
         "FROM users u "
-        "LEFT JOIN user_roles ur ON u.id = ur.user_id "
-        "LEFT JOIN roles r ON ur.role_id = r.id "
-        "LEFT JOIN members m ON u.id = m.id "
-        "LEFT JOIN students s ON m.id = s.id "
-        "LEFT JOIN teachers t ON m.id = t.id "
-        "LEFT JOIN librarians l ON u.id = l.id "
         "LEFT JOIN admins a ON u.id = a.id "
+        "LEFT JOIN librarians l ON u.id = l.id "
+        "LEFT JOIN members m ON u.id = m.id "
+        "LEFT JOIN teachers t ON m.id = t.id "
+        "LEFT JOIN students s ON m.id = s.id "
         "WHERE u.name = $1 "
         "LIMIT 1;",
         pqxx::params{username});
+
+    txn.commit();
 
     if (r.empty()) {
         return std::nullopt;
@@ -340,60 +359,36 @@ std::optional<UserRow> PostgresAdapter::getUserByName(const std::string& usernam
 
     const auto& row = r[0];
 
-    int id = row["id"].as<int>();
-    std::string name = row["name"].as<std::string>();
-    std::string email = row["email"].as<std::string>();
-    std::string passwordHash = row["password_hash"].as<std::string>();
-    std::string userType = row["user_type"].as<std::string>();
-    std::string roleName = row["role_name"].is_null() ? "None" : row["role_name"].as<std::string>();
+    return UserRow{
+        row["id"].as<int>(),
+        row["name"].as<std::string>(),
+        row["email"].as<std::string>(),
+        row["password_hash"].as<std::string>(),
+        row["role"].as<std::string>()
+    };
+};
 
-    std::shared_ptr<User> user;
-
-    //  Determine user type based on schema 
-    if (!row["admin_id"].is_null() || userType == "ADMIN") {
-        user = std::make_shared<Admin>(id, name, email);
-    } else if (!row["librarian_id"].is_null() || userType == "LIBRARIAN") {
-        user = std::make_shared<Librarian>(id, name, email);
-    } else if (userType == "MEMBER") {
-        // Check subclass via member joins
-        if (!row["grade_level"].is_null()) {
-            std::string grade = row["grade_level"].as<std::string>();
-            user = std::make_shared<Student>(id, name, email, grade);
-        } else if (!row["department"].is_null()) {
-            std::string dept = row["department"].as<std::string>();
-            user = std::make_shared<Teacher>(id, name, email, dept);
-        } else {
-            user = std::make_shared<Member>(id, name, email);
-        }
-    } else {
-        // Fallback for unexpected type
-        user = std::make_shared<Member>(id, name, email);
-    }
-
-    txn.commit();
-
-    // Return UserRow for authentication layer
-    return UserRow{id, name, email, passwordHash, roleName};
-}
-
-std::optional<UserRow> PostgresAdapter::getUserByEmail(const std::string& email){
+std::optional<UserRow> PostgresAdapter::getUserByEmail(const std::string& email) {
     pqxx::work txn(*conn_);
     auto res = txn.exec(
-    "SELECT u.id, u.email, u.password_hash, "
-    "       CASE "
-    "         WHEN a.id IS NOT NULL THEN 'ADMIN' "
-    "         WHEN l.id IS NOT NULL THEN 'LIBRARIAN' "
-    "         WHEN t.id IS NOT NULL THEN 'TEACHER' "
-    "         WHEN s.id IS NOT NULL THEN 'STUDENT' "
-    "         ELSE 'MEMBER' "
-    "       END AS role "
-    "FROM users u "
-    "LEFT JOIN admins a ON u.id = a.id "
-    "LEFT JOIN librarians l ON u.id = l.id "
-    "LEFT JOIN teachers t ON u.id = t.id "
-    "LEFT JOIN students s ON u.id = s.id "
-    "WHERE u.email = $1;",
-    pqxx::params{email});
+        "SELECT u.id, u.name, u.email, u.password_hash, "
+        "       CASE "
+        "         WHEN a.id IS NOT NULL THEN 'ADMIN' "
+        "         WHEN l.id IS NOT NULL THEN 'LIBRARIAN' "
+        "         WHEN t.id IS NOT NULL THEN 'TEACHER' "
+        "         WHEN s.id IS NOT NULL THEN 'STUDENT' "
+        "         ELSE 'MEMBER' "
+        "       END AS role "
+        "FROM users u "
+        "LEFT JOIN admins a ON u.id = a.id "
+        "LEFT JOIN librarians l ON u.id = l.id "
+        "LEFT JOIN members m ON u.id = m.id "
+        "LEFT JOIN teachers t ON m.id = t.id "
+        "LEFT JOIN students s ON m.id = s.id "
+        "WHERE u.email = $1;",
+        pqxx::params{email});
+
+    txn.commit();
 
     if (res.empty()) {
         return std::nullopt;
@@ -401,19 +396,50 @@ std::optional<UserRow> PostgresAdapter::getUserByEmail(const std::string& email)
 
     const auto& row = res[0];
 
-    int id = row["id"].as<int>();
-    std::string name = row["name"].as<std::string>();
-    std::string email = row["email"].as<std::string>();
-    std::string passwordHash = row["password_hash"].as<std::string>();
-    std::string role = row["role"].as<std::string>();
+    return UserRow{
+        row["id"].as<int>(),
+        row["name"].as<std::string>(),
+        row["email"].as<std::string>(),
+        row["password_hash"].as<std::string>(),
+        row["role"].as<std::string>()
+    };
+};
+
+std::optional<UserRow> PostgresAdapter::getUserById(const int userId) {
+    pqxx::work txn(*conn_);
+    auto res = txn.exec(
+        "SELECT u.id, u.name, u.email, u.password_hash, "
+        "       CASE "
+        "         WHEN a.id IS NOT NULL THEN 'ADMIN' "
+        "         WHEN l.id IS NOT NULL THEN 'LIBRARIAN' "
+        "         WHEN t.id IS NOT NULL THEN 'TEACHER' "
+        "         WHEN s.id IS NOT NULL THEN 'STUDENT' "
+        "         ELSE 'MEMBER' "
+        "       END AS role "
+        "FROM users u "
+        "LEFT JOIN admins a ON u.id = a.id "
+        "LEFT JOIN librarians l ON u.id = l.id "
+        "LEFT JOIN members m ON u.id = m.id "
+        "LEFT JOIN teachers t ON m.id = t.id "
+        "LEFT JOIN students s ON m.id = s.id "
+        "WHERE u.id = $1;",
+        pqxx::params{userId});
 
     txn.commit();
 
-    return UserRow{id, name, email, passwordHash, role};
-};
+    if (res.empty()) {
+        return std::nullopt;
+    }
 
-std::optional<UserRow> PostgresAdapter::getUserById(const int userId){
+    const auto& row = res[0];
 
+    return UserRow{
+        row["id"].as<int>(),
+        row["name"].as<std::string>(),
+        row["email"].as<std::string>(),
+        row["password_hash"].as<std::string>(),
+        row["role"].as<std::string>()
+    };
 };
 
 std::vector<std::tuple<std::string, std::string, std::string>> PostgresAdapter::getAllRolePermissions() {
