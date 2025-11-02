@@ -4,10 +4,10 @@ AuthService::AuthService(std::shared_ptr<PostgresAdapter> db,
                     std::shared_ptr<JwtHelper> jwt)
     : db_(std::move(db)), jwt_(std::move(jwt)) {}
 
-std::optional<std::string> AuthService::login(const std::string& username,
+std::optional<std::string> AuthService::login(const std::string& email,
                                     const std::string& password) {
-    auto user = db_->getUserByName(username);
-    std::cout << user->username << "\n" << user->role;
+    auto user = db_->getUserByEmail(email);
+    std::cout << user->email << "\n" << user->role;
     if (!user.has_value()) return std::nullopt;
     if (!PasswordHasher::verify(password, user->hashedPassword))
         return std::nullopt;

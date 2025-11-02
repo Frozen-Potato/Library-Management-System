@@ -14,12 +14,12 @@ void LoginController::registerRoutes(crow::App<JwtMiddleware>& app) {
             try {
                 auto body = parseJsonSafe(req.body);
 
-                if (!body.contains("username") || !body.contains("password"))
-                    throw ValidationException("Missing username or password");
+                if (!body.contains("email") || !body.contains("password"))
+                    throw ValidationException("Missing email or password");
 
-                auto token = authService_->login(body["username"], body["password"]);
+                auto token = authService_->login(body["email"], body["password"]);
                 if (!token.has_value())
-                    throw UnauthorizedException("Invalid username or password");
+                    throw UnauthorizedException("Invalid email or password");
 
                 json resp = {{"token", token.value()}};
                 return crow::response(200, resp.dump());
