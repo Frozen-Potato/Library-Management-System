@@ -143,12 +143,12 @@ INSERT INTO user_roles (user_id, role_id) VALUES
 (2, 1), -- Bob: Admin
 (3, 2), -- Carol: Librarian
 (4, 2), -- David: Librarian
-(5, 3), (5, 5), -- Emma: Member + Student
-(6, 3), (6, 5), -- Frank: Member + Student
-(7, 3), (7, 5), -- Grace: Member + Student
-(8, 3), (8, 5), -- Henry: Member + Student
-(9, 3), (9, 4), -- Iris: Member + Teacher
-(10, 3), (10, 4); -- Jack: Member + Teacher
+(5, 5), -- Emma: Student
+(6, 5), -- Frank: Student
+(7, 5), -- Grace: Student
+(8, 5), -- Henry: Student
+(9, 4), -- Iris: Teacher
+(10, 4); -- Jack: Teacher
 
 -- ===== MEDIA ITEMS =====
 -- Books

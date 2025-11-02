@@ -59,6 +59,9 @@ public:
     void assignRole(int userId, const std::string& role);
     std::vector<std::shared_ptr<User>> getAllUsers();
     std::optional<UserRow> getUserByName(const std::string& username);
+    std::optional<UserRow> getUserByEmail(const std::string& email);
+    std::optional<UserRow> getUserById(const int userId);
+
 
     // Permissions
     std::vector<std::tuple<std::string, std::string, std::string>> getAllRolePermissions();

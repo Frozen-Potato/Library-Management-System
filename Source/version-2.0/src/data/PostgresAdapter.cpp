@@ -349,7 +349,7 @@ std::optional<UserRow> PostgresAdapter::getUserByName(const std::string& usernam
 
     std::shared_ptr<User> user;
 
-    // --- Determine user type based on schema ---
+    //  Determine user type based on schema 
     if (!row["admin_id"].is_null() || userType == "ADMIN") {
         user = std::make_shared<Admin>(id, name, email);
     } else if (!row["librarian_id"].is_null() || userType == "LIBRARIAN") {
@@ -375,6 +375,46 @@ std::optional<UserRow> PostgresAdapter::getUserByName(const std::string& usernam
     // Return UserRow for authentication layer
     return UserRow{id, name, email, passwordHash, roleName};
 }
+
+std::optional<UserRow> PostgresAdapter::getUserByEmail(const std::string& email){
+    pqxx::work txn(*conn_);
+    auto res = txn.exec(
+    "SELECT u.id, u.email, u.password_hash, "
+    "       CASE "
+    "         WHEN a.id IS NOT NULL THEN 'ADMIN' "
+    "         WHEN l.id IS NOT NULL THEN 'LIBRARIAN' "
+    "         WHEN t.id IS NOT NULL THEN 'TEACHER' "
+    "         WHEN s.id IS NOT NULL THEN 'STUDENT' "
+    "         ELSE 'MEMBER' "
+    "       END AS role "
+    "FROM users u "
+    "LEFT JOIN admins a ON u.id = a.id "
+    "LEFT JOIN librarians l ON u.id = l.id "
+    "LEFT JOIN teachers t ON u.id = t.id "
+    "LEFT JOIN students s ON u.id = s.id "
+    "WHERE u.email = $1;",
+    pqxx::params{email});
+
+    if (res.empty()) {
+        return std::nullopt;
+    }
+
+    const auto& row = res[0];
+
+    int id = row["id"].as<int>();
+    std::string name = row["name"].as<std::string>();
+    std::string email = row["email"].as<std::string>();
+    std::string passwordHash = row["password_hash"].as<std::string>();
+    std::string role = row["role"].as<std::string>();
+
+    txn.commit();
+
+    return UserRow{id, name, email, passwordHash, role};
+};
+
+std::optional<UserRow> PostgresAdapter::getUserById(const int userId){
+
+};
 
 std::vector<std::tuple<std::string, std::string, std::string>> PostgresAdapter::getAllRolePermissions() {
 
