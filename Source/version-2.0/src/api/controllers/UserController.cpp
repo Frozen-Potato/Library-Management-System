@@ -99,14 +99,14 @@ void UserController::registerRoutes(crow::App<JwtMiddleware>& app) {
 
             auto body = parseJsonSafe(req.body);
 
-            // --- Validate required fields ---
+            // Validate required fields
             if (!body.contains("name") || !body.contains("email") || !body.contains("password"))
                 throw ValidationException("Missing required fields: name, email, or password");
 
-            // --- Extract role (default to Member if not specified) ---
+            // Extract role (default to Member if not specified)
             std::string role = body.value("role", "Member");
 
-            // --- Extract optional Student/Teacher attributes ---
+            // Extract optional Student/Teacher attributes
             std::optional<std::string> gradeLevel = std::nullopt;
             std::optional<std::string> department = std::nullopt;
 
@@ -117,7 +117,7 @@ void UserController::registerRoutes(crow::App<JwtMiddleware>& app) {
                 department = body["department"].get<std::string>();
             }
 
-            // --- Create user through service layer ---
+            // Create user through service layer
             int userId = userService_->createUser(
                 body["name"], body["email"], body["password"], role, gradeLevel, department
             );
