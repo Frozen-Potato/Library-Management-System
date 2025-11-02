@@ -1,108 +1,11 @@
-```
-.
 ├── CMakeLists.txt
-├── build
-│   ├── CMakeCache.txt
-│   ├── CMakeFiles
-│   │   ├── 3.28.3
-│   │   │   ├── CMakeCXXCompiler.cmake
-│   │   │   ├── CMakeDetermineCompilerABI_CXX.bin
-│   │   │   ├── CMakeSystem.cmake
-│   │   │   └── CompilerIdCXX
-│   │   │       ├── CMakeCXXCompilerId.cpp
-│   │   │       ├── a.out
-│   │   │       └── tmp
-│   │   ├── CMakeConfigureLog.yaml
-│   │   ├── CMakeDirectoryInformation.cmake
-│   │   ├── CMakeScratch
-│   │   ├── Makefile.cmake
-│   │   ├── Makefile2
-│   │   ├── TargetDirectories.txt
-│   │   ├── cmake.check_cache
-│   │   ├── library_server.dir
-│   │   │   ├── DependInfo.cmake
-│   │   │   ├── build.make
-│   │   │   ├── cmake_clean.cmake
-│   │   │   ├── compiler_depend.make
-│   │   │   ├── compiler_depend.ts
-│   │   │   ├── depend.make
-│   │   │   ├── flags.make
-│   │   │   ├── link.txt
-│   │   │   ├── main.cpp.o
-│   │   │   ├── main.cpp.o.d
-│   │   │   ├── progress.make
-│   │   │   ├── proto
-│   │   │   │   ├── log_service.grpc.pb.cc.o
-│   │   │   │   ├── log_service.grpc.pb.cc.o.d
-│   │   │   │   ├── log_service.pb.cc.o
-│   │   │   │   └── log_service.pb.cc.o.d
-│   │   │   └── src
-│   │   │       ├── api
-│   │   │       │   ├── controllers
-│   │   │       │   │   ├── BorrowController.cpp.o
-│   │   │       │   │   ├── BorrowController.cpp.o.d
-│   │   │       │   │   ├── LoginController.cpp.o
-│   │   │       │   │   ├── LoginController.cpp.o.d
-│   │   │       │   │   ├── MediaController.cpp.o
-│   │   │       │   │   ├── MediaController.cpp.o.d
-│   │   │       │   │   ├── ReturnController.cpp.o
-│   │   │       │   │   ├── ReturnController.cpp.o.d
-│   │   │       │   │   ├── UserController.cpp.o
-│   │   │       │   │   └── UserController.cpp.o.d
-│   │   │       │   ├── grpc
-│   │   │       │   │   ├── LogServiceServer.cpp.o
-│   │   │       │   │   └── LogServiceServer.cpp.o.d
-│   │   │       │   └── middleware
-│   │   │       │       ├── JwtMiddleware.cpp.o
-│   │   │       │       └── JwtMiddleware.cpp.o.d
-│   │   │       ├── application
-│   │   │       │   └── services
-│   │   │       │       ├── AuthService.cpp.o
-│   │   │       │       ├── AuthService.cpp.o.d
-│   │   │       │       ├── LibraryService.cpp.o
-│   │   │       │       ├── LibraryService.cpp.o.d
-│   │   │       │       ├── PgQueueService.cpp.o
-│   │   │       │       ├── PgQueueService.cpp.o.d
-│   │   │       │       ├── UserService.cpp.o
-│   │   │       │       └── UserService.cpp.o.d
-│   │   │       ├── data
-│   │   │       │   ├── MongoAdapter.cpp.o
-│   │   │       │   ├── MongoAdapter.cpp.o.d
-│   │   │       │   ├── PostgresAdapter.cpp.o
-│   │   │       │   └── PostgresAdapter.cpp.o.d
-│   │   │       └── infrastructure
-│   │   │           ├── config
-│   │   │           │   ├── ConfigManager.cpp.o
-│   │   │           │   ├── ConfigManager.cpp.o.d
-│   │   │           │   ├── EnvLoader.cpp.o
-│   │   │           │   └── EnvLoader.cpp.o.d
-│   │   │           ├── crypto
-│   │   │           │   ├── PasswordHasher.cpp.o
-│   │   │           │   └── PasswordHasher.cpp.o.d
-│   │   │           ├── db
-│   │   │           │   ├── MongoConnection.cpp.o
-│   │   │           │   ├── MongoConnection.cpp.o.d
-│   │   │           │   ├── PostgresPool.cpp.o
-│   │   │           │   └── PostgresPool.cpp.o.d
-│   │   │           ├── jwt
-│   │   │           │   ├── JwtHelper.cpp.o
-│   │   │           │   └── JwtHelper.cpp.o.d
-│   │   │           └── queue
-│   │   │               ├── PersistentQueue.cpp.o
-│   │   │               ├── PersistentQueue.cpp.o.d
-│   │   │               ├── QueueWorker.cpp.o
-│   │   │               └── QueueWorker.cpp.o.d
-│   │   ├── pkgRedirects
-│   │   └── progress.marks
-│   ├── Makefile
-│   ├── cmake_install.cmake
-│   └── library_server
 ├── build.sh
 ├── db
 │   ├── schema.sql
 │   └── seed.sql
 ├── docker
 │   ├── Dockerfile
+│   ├── Dockerfile.test
 │   └── docker-compose.yml
 ├── main.cpp
 ├── proto
@@ -129,13 +32,16 @@
 │   │   │   └── LogServiceServer.h
 │   │   └── middleware
 │   │       ├── JwtMiddleware.cpp
-│   │       └── JwtMiddleware.h
+│   │       ├── JwtMiddleware.h
+│   │       ├── PermissionMiddleware.cpp
+│   │       └── PermissionMiddleware.h
 │   ├── application
 │   │   └── services
 │   │       ├── AuthService.cpp
 │   │       ├── AuthService.h
 │   │       ├── LibraryService.cpp
 │   │       ├── LibraryService.h
+│   │       ├── PermissionService.h
 │   │       ├── PgQueueService.cpp
 │   │       ├── PgQueueService.h
 │   │       ├── QueueService.h
@@ -194,8 +100,7 @@
 │       ├── Exceptions.h
 │       ├── JsonUtils.h
 │       └── StringUtils.h
-├── test
-└── tree.md
-
-47 directories, 150 files
-```
+├── tests
+│   ├── test_auth_service.cpp
+│   ├── test_main.cpp
+│   └── test_user_service.cpp
