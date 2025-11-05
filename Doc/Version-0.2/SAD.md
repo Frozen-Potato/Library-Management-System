@@ -1,5 +1,12 @@
 # System Architecture Document (SAD)
-## Library Management System (LMS)
+
+**Project Name:** Library Management System
+
+**Version:** beta_0.2
+
+**Date:** 06.11.2025
+
+**Author:** FrozenPotato
 
 ---
 
