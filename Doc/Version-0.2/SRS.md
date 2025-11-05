@@ -10,7 +10,7 @@
 ## Introduction
 
 ### 1.1 Purpose  
-This document defines the **functional and non-functional requirements** for the **Library Management System (LMS)** — a scalable system for managing both **digital** and **physical media**.  
+This document defines the **functional and non-functional requirements** for the **Library Management System (LMS)** - a scalable system for managing both **digital** and **physical media**.  
 It supports creation, retrieval, borrowing, and delivery of media files while ensuring high performance, security, and maintainability.
 
 ### 1.2 Scope  

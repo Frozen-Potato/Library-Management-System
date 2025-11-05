@@ -5,7 +5,7 @@
 
 ## 1. Overview
 
-The **Library Management System (LMS)** is designed to manage and serve large volumes of digital media — such as e-books, audio, video, and documents — with support for metadata management, full-text search, high availability, and horizontal scalability.
+The **Library Management System (LMS)** is designed to manage and serve large volumes of digital media, such as e-books, audio, video, and documents with support for metadata management, full-text search, high availability, and horizontal scalability.
 
 The architecture follows **a modular layered monolithic design** inspired by **Clean Architecture** and **Domain-Driven Design (DDD)** principles.
 
@@ -51,7 +51,7 @@ The architecture follows **a modular layered monolithic design** inspired by **C
 | Layer | Components | Responsibilities |
 |-------|-------------|------------------|
 | **API Layer** | Controllers, Middleware | Handle user requests (REST/gRPC), enforce auth via JWT. |
-| **Application Layer** | Services | Implement business logic — borrowing, indexing, notifications. |
+| **Application Layer** | Services | Implement business logic - borrowing, indexing, notifications. |
 | **Domain Layer** | Entities, Policies | Define media, user, and borrowing rules. Core domain invariants. |
 | **Infrastructure Layer** | Adapters (DB, Queue, Storage) | Connects to PostgreSQL, MinIO, Redis, MongoDB, OpenSearch, RabbitMQ. |
 
