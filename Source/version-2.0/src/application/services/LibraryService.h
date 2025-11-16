@@ -31,11 +31,13 @@ public:
     // --- Queries ---
     std::vector<std::shared_ptr<Media>> getAllMedia();
     std::vector<MediaCopy> listCopiesByMedia(long mediaId);
+    std::vector<nlohmann::json> searchMedia(const std::string& query);
 
 private:
     void enqueueLog(const std::string& action, int userId, long entityId);
 
     std::shared_ptr<PostgresAdapter> db_;
     std::shared_ptr<QueueService> queue_;
+    std::shared_ptr<OpenSearchClient> search_;
     std::mutex mtx_;
 };

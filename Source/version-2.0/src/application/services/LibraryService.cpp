@@ -19,6 +19,13 @@ long LibraryService::createBook(int mediaTypeId, const std::string& title,
         long mediaId = db_->createMedia(mediaTypeId, title);
         db_->attachBook(mediaId, author, isbn);
         enqueueLog("CREATE_BOOK", 0, mediaId);
+
+        try {
+            search_->indexMedia(mediaId, title, author, "Book");
+        } catch (const std::exception& e) {
+            std::cerr << "[OpenSearch] Failed to index book: " << e.what() << std::endl;
+        }
+
         return mediaId;
     } catch (const std::exception& e) {
         throw DatabaseException("Failed to create book: " + std::string(e.what()));
@@ -35,6 +42,13 @@ long LibraryService::createMagazine(int mediaTypeId, const std::string& title,
         long mediaId = db_->createMedia(mediaTypeId, title);
         db_->attachMagazine(mediaId, issueNumber, publisher);
         enqueueLog("CREATE_MAGAZINE", 0, mediaId);
+
+        try {
+            search_->indexMedia(mediaId, title, publisher, "Magazine");
+        } catch (const std::exception& e) {
+            std::cerr << "[OpenSearch] Failed to index magazine: " << e.what() << std::endl;
+        }
+
         return mediaId;
     } catch (const std::exception& e) {
         throw DatabaseException("Failed to create magazine: " + std::string(e.what()));
@@ -113,6 +127,14 @@ std::vector<MediaCopy> LibraryService::listCopiesByMedia(long mediaId) {
         return db_->listCopiesByMedia(mediaId);
     } catch (const std::exception& e) {
         throw DatabaseException("Failed to fetch copies: " + std::string(e.what()));
+    }
+}
+
+std::vector<nlohmann::json> LibraryService::searchMedia(const std::string& query) {
+    try {
+        return search_->searchMedia(query);
+    } catch (const std::exception& e) {
+        throw DatabaseException("[Search] Failed: " + std::string(e.what()));
     }
 }
 
