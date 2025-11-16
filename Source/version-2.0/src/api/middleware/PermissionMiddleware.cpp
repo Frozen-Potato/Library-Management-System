@@ -5,9 +5,22 @@
 void PermissionMiddleware::before_handle(crow::request& req, crow::response& res, context& ctx) {
     // Retrieve JWT context from previous middleware
     auto* jwtCtx = req.template get_context<JwtMiddleware::context>();
-    if (!jwtCtx || !jwtCtx->valid) {
+
+    if (!jwtCtx) {
         res.code = 401;
-        res.write("Unauthorized: Missing or invalid JWT context");
+        res.write("Unauthorized: Invalid JWT context");
+        res.end();
+        return;
+    }
+
+    if (jwtCtx.isPublic) {
+        ctx.allowed = true;
+        return;
+    }
+
+    if (!jwtCtx.valid) {
+        res.code = 401;
+        res.write("Unauthorized: missing or invalid JWT");
         res.end();
         return;
     }
@@ -24,9 +37,10 @@ void PermissionMiddleware::before_handle(crow::request& req, crow::response& res
     }
 
     // Check permission
-    if (!permissionService_->hasPermission(jwtCtx->role, table, action)) {
+    bool permitted = permissionService_->checkPermission(jwtCtx.role, table, action);
+    if (!permitted) {
         res.code = 403;
-        res.write("Forbidden: Insufficient permission");
+        res.write("Forbidden: " + jwtCtx.role + " cannot " + action + " on " + table);
         res.end();
         return;
     }

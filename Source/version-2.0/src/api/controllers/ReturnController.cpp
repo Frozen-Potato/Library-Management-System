@@ -7,7 +7,7 @@ using json = nlohmann::json;
 ReturnController::ReturnController(std::shared_ptr<LibraryService> service)
     : service_(std::move(service)) {}
 
-void ReturnController::registerRoutes(crow::App<JwtMiddleware>& app) {
+void ReturnController::registerRoutes(crow::App<JwtMiddleware, PermissionMiddleware>& app) {
     CROW_ROUTE(app, "/api/return").methods(crow::HTTPMethod::POST)(
         [this, &app](const crow::request& req, crow::response& res) {
             try {

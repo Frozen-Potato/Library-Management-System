@@ -7,7 +7,7 @@
 class ReturnController {
 public:
     explicit ReturnController(std::shared_ptr<LibraryService> service);
-    void registerRoutes(crow::App<JwtMiddleware>& app);
+    void registerRoutes(crow::App<JwtMiddleware, PermissionMiddleware>& app);
 
 private:
     std::shared_ptr<LibraryService> service_;

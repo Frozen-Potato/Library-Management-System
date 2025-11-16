@@ -13,6 +13,7 @@
 #include "src/infrastructure/queue/QueueWorker.h"
 #include "src/infrastructure/jwt/JwtHelper.h"
 #include "src/api/middleware/JwtMiddleware.h"
+#include "src/api/middleware/PermissionMiddleware.h"
 
 #include "src/application/services/LibraryService.h"
 #include "src/application/services/PgQueueService.h"
@@ -71,7 +72,7 @@ int main() {
             config.jwtExpirationMinutes
         );
 
-        crow::App<JwtMiddleware> app(jwtHelper);
+        crow::App<JwtMiddleware, PermissionMiddleware> app(jwtHelper);
 
 
         // Initialize application services

@@ -8,6 +8,7 @@ public:
         std::string userId;
         std::string role;
         bool valid = false;
+        bool isPublic = false;  
     };
 
     JwtMiddleware() = default;

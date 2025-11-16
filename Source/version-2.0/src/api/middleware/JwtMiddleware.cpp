@@ -2,8 +2,15 @@
 #include <jwt-cpp/jwt.h>
 
 void JwtMiddleware::before_handle(crow::request& req, crow::response& res, context& ctx) {
+
+    static const std::vector<std::string> PUBLIC_PATHS = {
+        "/api/login",
+        "/api/register",
+        "/api/media"
+    };
+
     if (req.url.find("/api/login") == 0 || req.url.find("/api/media") == 0 || req.url.find("/api/register") == 0) {
-        ctx.valid = false;
+        ctx.isPublic = true;
         return;
     }
 

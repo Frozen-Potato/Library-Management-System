@@ -7,7 +7,7 @@
 class MediaController {
 public:
     explicit MediaController(std::shared_ptr<LibraryService> libraryService);
-    void registerRoutes(crow::App<JwtMiddleware>& app);
+    void registerRoutes(crow::App<JwtMiddleware, PermissionMiddleware>& app);
 
 private:
     std::shared_ptr<LibraryService> library_;

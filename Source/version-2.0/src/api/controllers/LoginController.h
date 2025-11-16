@@ -7,7 +7,7 @@
 class LoginController {
 public:
     explicit LoginController(std::shared_ptr<AuthService> authService);
-    void registerRoutes(crow::App<JwtMiddleware>& app);
+    void registerRoutes(crow::App<JwtMiddleware, PermissionMiddleware>& app);
 
 private:
     std::shared_ptr<AuthService> authService_;

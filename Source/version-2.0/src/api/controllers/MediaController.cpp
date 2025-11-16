@@ -7,7 +7,7 @@ using json = nlohmann::json;
 MediaController::MediaController(std::shared_ptr<LibraryService> libraryService)
     : library_(std::move(libraryService)) {}
 
-void MediaController::registerRoutes(crow::App<JwtMiddleware>& app) {
+void MediaController::registerRoutes(crow::App<JwtMiddleware, PermissionMiddleware>& app) {
     // GET /api/media
     CROW_ROUTE(app, "/api/media")
         .methods(crow::HTTPMethod::GET)

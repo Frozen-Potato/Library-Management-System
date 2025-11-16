@@ -7,7 +7,7 @@ using json = nlohmann::json;
 BorrowController::BorrowController(std::shared_ptr<LibraryService> service)
     : service_(std::move(service)) {}
 
-void BorrowController::registerRoutes(crow::App<JwtMiddleware>& app) {
+void BorrowController::registerRoutes(crow::App<JwtMiddleware, PermissionMiddleware>& app) {
     CROW_ROUTE(app, "/api/borrow").methods(crow::HTTPMethod::POST)(
         [this, &app](const crow::request& req, crow::response& res) {
             try {

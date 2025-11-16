@@ -1,6 +1,6 @@
 #include "SearchController.h"
 
-void SearchController::registerRoutes(crow::App<JwtMiddleware>& app) {
+void SearchController::registerRoutes(crow::App<JwtMiddleware, PermissionMiddleware>& app) {
 
     CROW_ROUTE(app, "/api/search").methods(crow::HTTPMethod::GET)(
         [this, &app](const crow::request& req, crow::response& res) {

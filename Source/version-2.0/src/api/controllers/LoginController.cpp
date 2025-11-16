@@ -8,7 +8,7 @@ using json = nlohmann::json;
 LoginController::LoginController(std::shared_ptr<AuthService> authService)
     : authService_(std::move(authService)) {}
 
-void LoginController::registerRoutes(crow::App<JwtMiddleware>& app) {
+void LoginController::registerRoutes(crow::App<JwtMiddleware, PermissionMiddleware>& app) {
     CROW_ROUTE(app, "/api/login").methods(crow::HTTPMethod::POST)(
         [this](const crow::request& req) {
             try {

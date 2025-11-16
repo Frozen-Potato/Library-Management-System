@@ -7,7 +7,7 @@ using json = nlohmann::json;
 UserController::UserController(std::shared_ptr<UserService> userService)
     : userService_(std::move(userService)) {}
 
-void UserController::registerRoutes(crow::App<JwtMiddleware>& app) {
+void UserController::registerRoutes(crow::App<JwtMiddleware, PermissionMiddleware>& app) {
 
     // Register
     CROW_ROUTE(app, "/api/register").methods(crow::HTTPMethod::POST)(
