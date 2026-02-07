@@ -25,7 +25,9 @@
 #include "src/api/controllers/ReturnController.h"
 #include "src/api/controllers/UserController.h"
 #include "src/api/controllers/LoginController.h"
+#include "src/api/controllers/SearchController.h"
 #include "src/api/grpc/LogServiceServer.h"
+#include "src/infrastructure/search/OpenSearchClient.h"
 
 // Global flag for graceful shutdown
 std::atomic<bool> running{true};
@@ -80,7 +82,8 @@ int main() {
         auto dbAdapter = std::make_shared<PostgresAdapter>(pgConn);
         auto userService = std::make_shared<UserService>(dbAdapter);
         auto authService = std::make_shared<AuthService>(dbAdapter, jwtHelper);
-        auto libraryService = std::make_shared<LibraryService>(dbAdapter, queueService);
+        auto searchClient = std::make_shared<OpenSearchClient>(config.opensearchUrl);
+        auto libraryService = std::make_shared<LibraryService>(dbAdapter, queueService, searchClient);
 
         // Register controllers
 
@@ -89,6 +92,7 @@ int main() {
         auto returnController = std::make_shared<ReturnController>(libraryService);
         auto userController  = std::make_shared<UserController>(userService);
         auto loginController = std::make_shared<LoginController>(authService);
+        auto searchController = std::make_shared<SearchController>(libraryService);
 
 
         mediaController->registerRoutes(app);
@@ -96,6 +100,7 @@ int main() {
         returnController->registerRoutes(app);
         userController->registerRoutes(app);
         loginController->registerRoutes(app);
+        searchController->registerRoutes(app);
 
         std::cout << "[REST] Routes registered successfully.\n";
 

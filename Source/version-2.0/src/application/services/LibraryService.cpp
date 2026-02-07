@@ -4,8 +4,9 @@
 #include <iostream>
 
 LibraryService::LibraryService(std::shared_ptr<PostgresAdapter> db,
-                               std::shared_ptr<QueueService> queue)
-    : db_(std::move(db)), queue_(std::move(queue)) {}
+                               std::shared_ptr<QueueService> queue,
+                               std::shared_ptr<OpenSearchClient> search)
+    : db_(std::move(db)), queue_(std::move(queue)), search_(std::move(search)) {}
 
 // --- Media creation ---
 

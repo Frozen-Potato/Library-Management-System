@@ -16,6 +16,8 @@ struct Config {
     std::string jwtSecret;
     int jwtExpirationMinutes;
 
+    std::string opensearchUrl;
+
     std::string appEnv;
     std::string logLevel;
 };

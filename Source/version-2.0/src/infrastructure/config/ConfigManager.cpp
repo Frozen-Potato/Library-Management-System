@@ -15,5 +15,6 @@ Config ConfigManager::load() {
     c.grpcPort = std::stoi(EnvLoader::get("GRPC_PORT", "50051"));
     c.jwtSecret = EnvLoader::get("JWT_SECRET", "super_secret_jwt_key");
     c.jwtExpirationMinutes = std::stoi(EnvLoader::get("JWT_EXPIRATION_MINUTES", "6000"));
+    c.opensearchUrl = EnvLoader::get("OPENSEARCH_URL", "http://opensearch:9200");
     return c;
 }
