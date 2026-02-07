@@ -7,7 +7,6 @@ AuthService::AuthService(std::shared_ptr<PostgresAdapter> db,
 std::optional<std::string> AuthService::login(const std::string& email,
                                     const std::string& password) {
     auto user = db_->getUserByEmail(email);
-    std::cout << user->email << "\n" << user->role;
     if (!user.has_value()) return std::nullopt;
     if (!PasswordHasher::verify(password, user->hashedPassword))
         return std::nullopt;

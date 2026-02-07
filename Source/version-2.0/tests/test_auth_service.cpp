@@ -42,7 +42,7 @@ TEST_F(AuthServiceIntegrationTest, LoginAndVerifyToken) {
                                          std::nullopt);
     ASSERT_GT(userId, 0);
 
-    auto tokenOpt = authService->login("auth_test_user", "password123");
+    auto tokenOpt = authService->login("auth_test_user@example.com", "password123");
     ASSERT_TRUE(tokenOpt.has_value());
     std::string token = tokenOpt.value();
     ASSERT_FALSE(token.empty());
