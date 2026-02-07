@@ -138,6 +138,151 @@ std::vector<json> OpenSearchClient::searchMedia(const std::string& query) {
     return results;
 }
 
+std::vector<json> OpenSearchClient::fuzzySearch(const std::string& query,
+                                                const std::string& fuzziness,
+                                                int from, int size) {
+    json q = {
+        {"from", from},
+        {"size", size},
+        {"query", {
+            {"bool", {
+                {"should", json::array({
+                    {{"multi_match", {
+                        {"query", query},
+                        {"fields", {"title^3", "author^2", "category"}},
+                        {"fuzziness", fuzziness},
+                        {"prefix_length", 1},
+                        {"max_expansions", 50}
+                    }}},
+                    {{"multi_match", {
+                        {"query", query},
+                        {"fields", {"title^3", "author^2", "category"}},
+                        {"type", "phrase_prefix"}
+                    }}}
+                })},
+                {"minimum_should_match", 1}
+            }}
+        }},
+        {"highlight", {
+            {"fields", {
+                {"title", json::object()},
+                {"author", json::object()}
+            }}
+        }}
+    };
+
+    std::string resp;
+    if (!sendRequest("/media/_search", "POST", q.dump(), resp))
+        return {};
+
+    json parsed = json::parse(resp, nullptr, false);
+    if (parsed.is_discarded())
+        return {};
+
+    std::vector<json> results;
+    if (parsed.contains("hits") && parsed["hits"].contains("hits")) {
+        for (auto& hit : parsed["hits"]["hits"]) {
+            json result;
+            if (hit.contains("_source"))
+                result = hit["_source"];
+            if (hit.contains("_score"))
+                result["_score"] = hit["_score"];
+            if (hit.contains("highlight"))
+                result["_highlight"] = hit["highlight"];
+            results.push_back(result);
+        }
+    }
+    return results;
+}
+
+std::vector<std::string> OpenSearchClient::autoSuggest(const std::string& prefix, int maxResults) {
+    json q = {
+        {"suggest", {
+            {"media-suggest", {
+                {"prefix", prefix},
+                {"completion", {
+                    {"field", "suggest"},
+                    {"size", maxResults},
+                    {"fuzzy", {
+                        {"fuzziness", "AUTO"}
+                    }}
+                }}
+            }}
+        }}
+    };
+
+    std::string resp;
+    if (!sendRequest("/media/_search", "POST", q.dump(), resp))
+        return {};
+
+    json parsed = json::parse(resp, nullptr, false);
+    if (parsed.is_discarded())
+        return {};
+
+    std::vector<std::string> suggestions;
+    if (parsed.contains("suggest") && parsed["suggest"].contains("media-suggest")) {
+        for (auto& entry : parsed["suggest"]["media-suggest"]) {
+            if (entry.contains("options")) {
+                for (auto& opt : entry["options"]) {
+                    if (opt.contains("text"))
+                        suggestions.push_back(opt["text"].get<std::string>());
+                }
+            }
+        }
+    }
+    return suggestions;
+}
+
+bool OpenSearchClient::createIndexWithMapping() {
+    json mapping = {
+        {"settings", {
+            {"number_of_shards", 1},
+            {"number_of_replicas", 1},
+            {"analysis", {
+                {"analyzer", {
+                    {"autocomplete_analyzer", {
+                        {"type", "custom"},
+                        {"tokenizer", "standard"},
+                        {"filter", {"lowercase", "edge_ngram_filter"}}
+                    }}
+                }},
+                {"filter", {
+                    {"edge_ngram_filter", {
+                        {"type", "edge_ngram"},
+                        {"min_gram", 2},
+                        {"max_gram", 20}
+                    }}
+                }}
+            }}
+        }},
+        {"mappings", {
+            {"properties", {
+                {"id", {{"type", "integer"}}},
+                {"title", {
+                    {"type", "text"},
+                    {"analyzer", "standard"},
+                    {"fields", {
+                        {"autocomplete", {
+                            {"type", "text"},
+                            {"analyzer", "autocomplete_analyzer"},
+                            {"search_analyzer", "standard"}
+                        }}
+                    }}
+                }},
+                {"author", {{"type", "text"}}},
+                {"category", {{"type", "keyword"}}},
+                {"suggest", {
+                    {"type", "completion"},
+                    {"analyzer", "simple"}
+                }}
+            }}
+        }}
+    };
+
+    std::string resp;
+    return sendRequest("/media", "PUT", mapping.dump(), resp);
+}
+
 bool OpenSearchClient::bulkIndex(const std::vector<json>& docs) {
     std::string body;
 

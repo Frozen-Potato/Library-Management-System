@@ -16,5 +16,14 @@ Config ConfigManager::load() {
     c.jwtSecret = EnvLoader::get("JWT_SECRET", "super_secret_jwt_key");
     c.jwtExpirationMinutes = std::stoi(EnvLoader::get("JWT_EXPIRATION_MINUTES", "6000"));
     c.opensearchUrl = EnvLoader::get("OPENSEARCH_URL", "http://opensearch:9200");
+    c.redisHost = EnvLoader::get("REDIS_HOST", "redis");
+    c.redisPort = std::stoi(EnvLoader::get("REDIS_PORT", "6379"));
+    c.redisPassword = EnvLoader::get("REDIS_PASSWORD", "");
+    c.s3Endpoint = EnvLoader::get("S3_ENDPOINT", "http://minio:9000");
+    c.s3AccessKey = EnvLoader::get("S3_ACCESS_KEY", "minioadmin");
+    c.s3SecretKey = EnvLoader::get("S3_SECRET_KEY", "minioadmin");
+    c.s3Bucket = EnvLoader::get("S3_BUCKET", "library-media");
+    c.s3Region = EnvLoader::get("S3_REGION", "us-east-1");
+    c.kafkaBrokers = EnvLoader::get("KAFKA_BROKERS", "kafka:9092");
     return c;
 }

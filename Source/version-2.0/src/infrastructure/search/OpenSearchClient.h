@@ -22,6 +22,17 @@ public:
 
     std::vector<nlohmann::json> searchMedia(const std::string& query);
 
+    // Fuzzy full-text search with configurable fuzziness
+    std::vector<nlohmann::json> fuzzySearch(const std::string& query,
+                                            const std::string& fuzziness = "AUTO",
+                                            int from = 0, int size = 10);
+
+    // Auto-suggest / completion
+    std::vector<std::string> autoSuggest(const std::string& prefix, int maxResults = 5);
+
+    // Setup index with completion mapping (call once on startup)
+    bool createIndexWithMapping();
+
     // Bulk indexing
     bool bulkIndex(const std::vector<nlohmann::json>& docs);
 

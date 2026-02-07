@@ -61,16 +61,179 @@ services:
     networks:
       - library_net
 
+  redis:
+    image: redis:7-alpine
+    container_name: library_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - library_net
+
+  opensearch:
+    image: opensearchproject/opensearch:2.11.0
+    container_name: library_opensearch
+    restart: always
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    volumes:
+      - opensearchdata:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - library_net
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.11.0
+    container_name: library_opensearch_ui
+    restart: always
+    ports:
+      - "5601:5601"
+    environment:
+      OPENSEARCH_HOSTS: '["http://opensearch:9200"]'
+      DISABLE_SECURITY_DASHBOARDS_PLUGIN: "true"
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    networks:
+      - library_net
+
+  minio:
+    image: minio/minio:latest
+    container_name: library_minio
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - library_net
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: library_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin;
+      mc mb --ignore-existing local/library-media;
+      mc version enable local/library-media;
+      exit 0;
+      "
+    networks:
+      - library_net
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: library_zookeeper
+    restart: always
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc localhost 2181 | grep imok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - library_net
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: library_kafka
+    restart: always
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "29092:29092"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - library_net
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: library_prometheus
+    restart: always
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheusdata:/prometheus
+    networks:
+      - library_net
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: library_grafana
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafanadata:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - library_net
+
   library_backend:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-      target: runtime 
+      target: runtime
     container_name: library_server
     depends_on:
       postgres:
         condition: service_healthy
       mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     env_file:
       - ../.env
@@ -84,12 +247,22 @@ services:
       JWT_SECRET: super_secret_jwt_key
       JWT_EXPIRATION_MINUTES: 6000
       QUEUE_INTERVAL: 2
+      OPENSEARCH_URL: http://opensearch:9200
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: minioadmin
+      S3_SECRET_KEY: minioadmin
+      S3_BUCKET: library-media
+      S3_REGION: us-east-1
+      KAFKA_BROKERS: kafka:9092
     ports:
       - "8080:8080"
       - "50051:50051"
     restart: unless-stopped
     networks:
       - library_net
+
   library_tests:
     build:
       context: ..
@@ -121,6 +294,11 @@ services:
 volumes:
   pgdata:
   mongodata:
+  redisdata:
+  opensearchdata:
+  miniodata:
+  prometheusdata:
+  grafanadata:
 
 networks:
   library_net:

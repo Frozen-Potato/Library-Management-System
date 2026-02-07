@@ -99,6 +99,10 @@ target_link_libraries(library_server
         gpr
         address_sorting
         bcrypt
+        hiredis
+        rdkafka
+        rdkafka++
+        curl
 )
 
 

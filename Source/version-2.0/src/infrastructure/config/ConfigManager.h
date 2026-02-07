@@ -18,6 +18,21 @@ struct Config {
 
     std::string opensearchUrl;
 
+    // Redis
+    std::string redisHost;
+    int redisPort;
+    std::string redisPassword;
+
+    // S3 / MinIO
+    std::string s3Endpoint;
+    std::string s3AccessKey;
+    std::string s3SecretKey;
+    std::string s3Bucket;
+    std::string s3Region;
+
+    // Kafka
+    std::string kafkaBrokers;
+
     std::string appEnv;
     std::string logLevel;
 };
