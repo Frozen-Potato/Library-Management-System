@@ -60,7 +60,7 @@ MediaCopy PostgresAdapter::getCopy(long copyId) {
     auto r = txn.exec(
         "SELECT copy_id, media_id, condition, is_available "
         "FROM media_copy WHERE copy_id = $1;",
-        copyId
+        pqxx::params{copyId}
     );
     txn.commit();
     if (r.empty()) throw std::runtime_error("Copy not found.");
@@ -78,7 +78,7 @@ std::vector<MediaCopy> PostgresAdapter::listCopiesByMedia(long mediaId) {
     auto res = txn.exec(
         "SELECT copy_id, media_id, condition, is_available "
         "FROM media_copy WHERE media_id = $1 ORDER BY copy_id;",
-        mediaId
+        pqxx::params{mediaId}
     );
     txn.commit();
 
@@ -134,9 +134,9 @@ std::vector<std::shared_ptr<Media>> PostgresAdapter::getAllMedia() {
             if (type == "Book") {
                 std::string author =
                     row["author"].is_null() ? "Unknown" : row["author"].as<std::string>();
-                std::string publisher =
-                    row["publisher"].is_null() ? "Unknown" : row["publisher"].as<std::string>();
-                out.push_back(std::make_shared<Book>(id, title, author, publisher));
+                std::string isbn =
+                    row["isbn"].is_null() ? "Unknown" : row["isbn"].as<std::string>();
+                out.push_back(std::make_shared<Book>(id, title, author, isbn));
             }
             else if (type == "Magazine") {
                 int issue = row["issue_number"].is_null() ? 0 : row["issue_number"].as<int>();
@@ -176,7 +176,7 @@ void PostgresAdapter::addActiveBorrow(int userId, long copyId) {
 
 void PostgresAdapter::markCopyReturned(long copyId) {
     pqxx::work txn(*conn_);
-    txn.exec("CALL mark_copy_returned($1);", copyId);
+    txn.exec("CALL mark_copy_returned($1);", pqxx::params{copyId});
     txn.commit();
 }
 
@@ -205,8 +205,6 @@ int PostgresAdapter::insertUser(const std::string& name, const std::string& emai
                                 const std::optional<std::string>& gradeLevel,
                                 const std::optional<std::string>& department) {
     pqxx::work txn(*conn_);
-    
-    std::cout << role;
 
     // Normalize role to uppercase for comparison
     std::string normalizedRole = role;
