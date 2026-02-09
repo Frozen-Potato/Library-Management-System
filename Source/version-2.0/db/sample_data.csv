@@ -1,0 +1,21 @@
+title,type,author,isbn,director,narrator,issue_number,publisher,copies,condition
+"The Alchemist",Book,"Paulo Coelho","978-0-06-112241-5",,,,2,GOOD
+"The Little Prince",Book,"Antoine de Saint-Exupery","978-0-15-601219-5",,,,2,EXCELLENT
+"One Hundred Years of Solitude",Book,"Gabriel Garcia Marquez","978-0-06-088328-7",,,,1,GOOD
+"The Kite Runner",Book,"Khaled Hosseini","978-1-59448-000-3",,,,2,GOOD
+"Life of Pi",Book,"Yann Martel","978-0-15-602732-8",,,,1,EXCELLENT
+"The Road",Book,"Cormac McCarthy","978-0-307-38789-9",,,,1,GOOD
+"The Book Thief",Book,"Markus Zusak","978-0-375-84220-7",,,,2,GOOD
+"Slaughterhouse-Five",Book,"Kurt Vonnegut","978-0-440-18029-6",,,,1,FAIR
+"Beloved",Book,"Toni Morrison","978-1-4000-3341-6",,,,1,GOOD
+"The Bell Jar",Book,"Sylvia Plath","978-0-06-117490-1",,,,1,GOOD
+"Scientific American - January 2025",Magazine,,,,,"202501","Springer Nature",1,EXCELLENT
+"National Geographic - March 2025",Magazine,,,,,"202503","National Geographic Society",1,EXCELLENT
+"The Economist - February 2025",Magazine,,,,,"202502","The Economist Group",1,GOOD
+"Fight Club",DVD,,,"David Fincher",,,2,GOOD
+"The Silence of the Lambs",DVD,,,"Jonathan Demme",,,2,EXCELLENT
+"Jurassic Park",DVD,,,"Steven Spielberg",,,2,GOOD
+"The Lord of the Rings: The Fellowship of the Ring",DVD,,,"Peter Jackson",,,3,GOOD
+"Dune",Audiobook,,,,"Scott Brick",,1,EXCELLENT
+"Project Hail Mary",Audiobook,,,,"Ray Porter",,1,GOOD
+"The Hitchhiker's Guide to the Galaxy",Audiobook,,,,"Stephen Fry",,1,GOOD

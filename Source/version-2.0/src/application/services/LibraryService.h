@@ -10,12 +10,14 @@
 #include "src/domain/borrow/BorrowRecord.h"
 #include "src/data/PostgresAdapter.h"
 #include "src/application/services/QueueService.h"
+#include "src/infrastructure/search/OpenSearchClient.h"
 
 // Application layer: core library workflow logic
 class LibraryService {
 public:
     LibraryService(std::shared_ptr<PostgresAdapter> db,
-                   std::shared_ptr<QueueService> queue);
+                   std::shared_ptr<QueueService> queue,
+                   std::shared_ptr<OpenSearchClient> search);
 
     // --- Media creation ---
     long createBook(int mediaTypeId, const std::string& title,
